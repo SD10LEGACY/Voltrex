@@ -299,7 +299,7 @@ def load_sentiment_model():
     return pipeline("sentiment-analysis", model="ProsusAI/finbert")
 
 # THE 80-SOURCE GOD-TIER NLP ENGINE
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=1800, show_spinner=False)
 def fetch_real_news_and_sentiment():
     articles = []
     seen_titles = set()
