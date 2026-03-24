@@ -21,7 +21,7 @@ warnings.filterwarnings("ignore")
 # ==========================================
 # 1. PAGE CONFIGURATION & CSS
 # ==========================================
-st.set_page_config(page_title="Voltrex Quantitative Terminal", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Voltrex Quantitative Terminal", page_icon="Vicon.png", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
 <style>
