@@ -297,7 +297,7 @@ def execute_hybrid_model(data_df):
 def load_sentiment_model():
     return pipeline("sentiment-analysis", model="ProsusAI/finbert")
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=1, show_spinner=False)
 def fetch_real_news_and_sentiment():
     PANIC_TOKEN = "948e7ca29eae0874608f78be63530199af766176" 
     articles = []
