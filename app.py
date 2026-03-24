@@ -92,17 +92,18 @@ header[data-testid="stHeader"] { display: none !important; height: 0px !importan
 .chart-legend { padding: 0 32px; font-size: 0.7rem; color: #8a849b; display: flex; gap: 15px; font-weight: 600; margin-bottom: 10px;}
 .chart-legend span span { color: #f5a623; }
 
+/* --- FIXED NEWS FEED STYLES --- */
 .news-feed-wrapper { padding: 10px 32px 30px 32px; }
 .sec-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 16px; color: #ffffff; text-transform: uppercase; letter-spacing: 1px; }
-.news-scroll { max-height: 240px; overflow-y: auto; padding-right: 10px; border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; background: rgba(18, 13, 28, 0.4); }
+.news-scroll { max-height: 300px; overflow-y: auto; padding-right: 5px; border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; background: rgba(18, 13, 28, 0.4); }
 .news-scroll::-webkit-scrollbar { width: 6px; }
 .news-scroll::-webkit-scrollbar-track { background: transparent; }
 .news-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
 
-.news-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.2s; }
-.news-row-left { display: flex; align-items: center; gap: 20px; flex: 1; }
-.n-source { font-size: 0.75rem; color: #8a849b; font-weight: 600; min-width: 100px; text-transform: uppercase; letter-spacing: 0.5px; }
-.n-title { font-size: 0.9rem; color: #e2e8f0; font-weight: 500; line-height: 1.4; }
+.news-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.2s; gap: 15px;}
+.news-row-left { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; /* min-width 0 allows text truncation to work properly if needed later */ }
+.n-source { font-size: 0.7rem; color: #8a849b; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 4px; display: inline-block; align-self: flex-start;}
+.n-title { font-size: 0.9rem; color: #e2e8f0; font-weight: 500; line-height: 1.5; word-wrap: break-word; }
 .n-badge { padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; text-align: center; min-width: 130px; }
 .n-badge.pos { background: rgba(0, 255, 157, 0.1); color: #00ff9d; border: 1px solid rgba(0, 255, 157, 0.2); }
 .n-badge.neg { background: rgba(255, 77, 77, 0.1); color: #ff4d4d; border: 1px solid rgba(255, 77, 77, 0.2); }
