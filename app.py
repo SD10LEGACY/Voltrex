@@ -300,33 +300,51 @@ def load_sentiment_model():
 
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_real_news_and_sentiment():
-    PANIC_TOKEN = "948e7ca29eae0874608f78be63530199af766176" 
     articles = []
     
-    # 1. Try CryptoPanic FIRST (With anti-bot headers and a 10-second timeout)
-    try:
-        panic_url = f"https://cryptopanic.com/api/v1/posts/?auth_token={PANIC_TOKEN}&public=true"
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        panic_res = requests.get(panic_url, headers=headers, timeout=10).json()
+    # The "God-Tier" Aggregator List: News + Social + Video
+    feeds = [
+        # --- SOCIAL MEDIA (Reddit) ---
+        {"url": "https://www.reddit.com/r/CryptoCurrency/top/.rss?t=day", "name": "Reddit (r/CryptoCurrency)"},
+        {"url": "https://www.reddit.com/r/Bitcoin/top/.rss?t=day", "name": "Reddit (r/Bitcoin)"},
+        {"url": "https://www.reddit.com/r/cryptofinance/top/.rss?t=day", "name": "Reddit (r/CryptoFinance)"},
         
-        for post in panic_res.get('results', [])[:6]: 
-            # Dynamically pull the actual website name (e.g., 'decrypt.co', 'theblock.co')
-            source_name = post.get('source', {}).get('domain', 'CryptoPanic')
-            articles.append({"title": post['title'], "source": source_name})
-    except Exception as e: 
-        pass
+        # --- VIDEO PLATFORMS (YouTube) ---
+        # Note: These use the hidden YouTube XML feed structures
+        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCqK_GSMbpiV8spgD3ZGloSw", "name": "YouTube (Coin Bureau)"},
+        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCgyvtPqqMOU3A4hO-yoeHIA", "name": "YouTube (Altcoin Daily)"},
         
-    # 2. Only use CryptoNews RSS as a BACKUP if CryptoPanic completely fails or times out
-    if len(articles) == 0:
+        # --- TRADITIONAL INSTITUTIONAL NEWS ---
+        {"url": "https://cointelegraph.com/rss", "name": "Cointelegraph"},
+        {"url": "https://www.coindesk.com/arc/outboundfeeds/rss/", "name": "CoinDesk"},
+        {"url": "https://decrypt.co/feed", "name": "Decrypt"},
+        {"url": "https://cryptopotato.com/feed/", "name": "CryptoPotato"},
+        {"url": "https://www.newsbtc.com/feed/", "name": "NewsBTC"},
+        {"url": "https://ambcrypto.com/feed/", "name": "AMBCrypto"},
+        {"url": "https://u.today/rss", "name": "U.Today"},
+        {"url": "https://bitcoinist.com/feed/", "name": "Bitcoinist"},
+        {"url": "https://cryptoslate.com/feed/", "name": "CryptoSlate"},
+        {"url": "https://blockworks.co/feed", "name": "Blockworks"}
+    ]
+    
+    # We must use a highly realistic User-Agent, or Reddit will block the connection
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
+    
+    for feed_info in feeds:
         try:
-            headers = {'User-Agent': 'Mozilla/5.0'}; res = requests.get("https://cryptonews.com/news/rss/", headers=headers, timeout=5)
-            feed = feedparser.parse(res.content)
-            for entry in feed.entries[:6]: articles.append({"title": entry.title, "source": "CryptoNews"})
-        except: pass
-        
-    # 3. Emergency Fallback if both APIs are down
+            res = requests.get(feed_info["url"], headers=headers, timeout=5)
+            parsed_feed = feedparser.parse(res.content)
+            # Grab the top 2 trending items from EACH of the 15 sources
+            for entry in parsed_feed.entries[:2]: 
+                articles.append({"title": entry.title, "source": feed_info["name"]})
+        except:
+            continue
+            
+    # Emergency Fallback
     if not articles: 
-        articles = [{"title": "Bitcoin resilience tested at key levels", "source": "ExpertNode"}]
+        articles = [{"title": "Bitcoin resilience tested at key levels", "source": "System Node"}]
         
     # --- FinBERT Sentiment Processing ---
     sentiment_pipeline = load_sentiment_model()
@@ -334,6 +352,8 @@ def fetch_real_news_and_sentiment():
     for i, res in enumerate(results): 
         articles[i]["score"] = res['score'] if res['label'] == 'positive' else -res['score'] if res['label'] == 'negative' else random.uniform(-0.05, 0.05)
         
+    # Shuffle them so Reddit, YouTube, and News are mixed perfectly on the dashboard
+    random.shuffle(articles)
     return articles
 
 def generate_backtest_stats(df):
