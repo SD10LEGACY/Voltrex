@@ -1,0 +1,12 @@
+streamlit
+pandas
+numpy
+plotly
+python-binance
+scikit-learn
+tensorflow-cpu
+xgboost
+feedparser
+transformers
+torch
+requests
