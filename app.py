@@ -298,23 +298,42 @@ def execute_hybrid_model(data_df):
 def load_sentiment_model():
     return pipeline("sentiment-analysis", model="ProsusAI/finbert")
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def fetch_real_news_and_sentiment():
     PANIC_TOKEN = "948e7ca29eae0874608f78be63530199af766176" 
     articles = []
+    
+    # 1. Try CryptoPanic FIRST (With anti-bot headers and a 10-second timeout)
     try:
         panic_url = f"https://cryptopanic.com/api/v1/posts/?auth_token={PANIC_TOKEN}&public=true"
-        panic_res = requests.get(panic_url, timeout=5).json()
-        for post in panic_res.get('results', [])[:5]: articles.append({"title": post['title'], "source": "PanicCrowd"})
-    except: pass
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0'}; res = requests.get("https://cryptonews.com/news/rss/", headers=headers, timeout=5)
-        feed = feedparser.parse(res.content)
-        for entry in feed.entries[:5]: articles.append({"title": entry.title, "source": "CryptoNews"})
-    except: pass
-    if not articles: articles = [{"title": "Bitcoin resilience tested at key levels", "source": "ExpertNode"}]
-    sentiment_pipeline = load_sentiment_model(); results = sentiment_pipeline([a["title"] for a in articles])
-    for i, res in enumerate(results): articles[i]["score"] = res['score'] if res['label'] == 'positive' else -res['score'] if res['label'] == 'negative' else random.uniform(-0.05, 0.05)
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        panic_res = requests.get(panic_url, headers=headers, timeout=10).json()
+        
+        for post in panic_res.get('results', [])[:6]: 
+            # Dynamically pull the actual website name (e.g., 'decrypt.co', 'theblock.co')
+            source_name = post.get('source', {}).get('domain', 'CryptoPanic')
+            articles.append({"title": post['title'], "source": source_name})
+    except Exception as e: 
+        pass
+        
+    # 2. Only use CryptoNews RSS as a BACKUP if CryptoPanic completely fails or times out
+    if len(articles) == 0:
+        try:
+            headers = {'User-Agent': 'Mozilla/5.0'}; res = requests.get("https://cryptonews.com/news/rss/", headers=headers, timeout=5)
+            feed = feedparser.parse(res.content)
+            for entry in feed.entries[:6]: articles.append({"title": entry.title, "source": "CryptoNews"})
+        except: pass
+        
+    # 3. Emergency Fallback if both APIs are down
+    if not articles: 
+        articles = [{"title": "Bitcoin resilience tested at key levels", "source": "ExpertNode"}]
+        
+    # --- FinBERT Sentiment Processing ---
+    sentiment_pipeline = load_sentiment_model()
+    results = sentiment_pipeline([a["title"] for a in articles])
+    for i, res in enumerate(results): 
+        articles[i]["score"] = res['score'] if res['label'] == 'positive' else -res['score'] if res['label'] == 'negative' else random.uniform(-0.05, 0.05)
+        
     return articles
 
 def generate_backtest_stats(df):
