@@ -261,60 +261,66 @@ components.html(ticker_html, height=44)
 # 3. PYTHON MACHINE LEARNING BACKEND
 # ==========================================
 @st.cache_data(ttl=300, show_spinner=False)
-def fetch_binance_data():
-    client = Client("", "", tld='us')
-    klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_1DAY, "1 Jan, 2023", "today UTC")
-    cols =['Open time', 'Open', 'High', 'Low', 'Close', 'Volume', 'Close time', 'Quote asset volume', 'Number of trades', 'Taker buy base', 'Taker buy quote', 'Ignore']
-    df = pd.DataFrame(klines, columns=cols)
-    numeric_cols =['Open', 'High', 'Low', 'Close', 'Volume']
-    df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, axis=1)
-    df['Open time'] = pd.to_datetime(df['Open time'], unit='ms', utc=True)
-    df.set_index('Open time', inplace=True)
-    delta = df['Close'].diff()
-    gain = (delta.where(delta > 0, 0)).rolling(14).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-    df['RSI'] = 100 - (100 / (1 + (gain / loss)))
-    df['MACD'] = df['Close'].ewm(span=12).mean() - df['Close'].ewm(span=26).mean()
-    df['OBV'] = (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
-    return df.dropna()
-
-@st.cache_resource(show_spinner=False)
-def execute_hybrid_model(data_df):
-    LOOK_BACK = 30
-    target_scaler = MinMaxScaler(); target_scaled = target_scaler.fit_transform(data_df[['Close']])
-    feature_scaler = RobustScaler(); features_scaled = feature_scaler.fit_transform(data_df[['Close', 'RSI', 'MACD', 'OBV']])
-    X, y = [], []
-    for i in range(len(features_scaled) - LOOK_BACK - 1):
-        X.append(features_scaled[i:(i + LOOK_BACK)]); y.append(target_scaled[i + LOOK_BACK])
-    X, y = np.array(X), np.array(y)
-    input_layer = Input(shape=(LOOK_BACK, X.shape[2])); lstm = LSTM(32)(input_layer); out = Dense(1)(lstm)
-    model_lstm = Model(inputs=input_layer, outputs=out); model_lstm.compile(optimizer='adam', loss='mse'); model_lstm.fit(X, y, epochs=1, batch_size=32, verbose=0)
-    xgb_model = XGBRegressor(n_estimators=20); xgb_model.fit(np.concatenate([model_lstm.predict(X, verbose=0), X[:, -1, :]], axis=1), y)
-    last_seq = features_scaled[-LOOK_BACK:].reshape(1, LOOK_BACK, X.shape[2])
-    pred_scaled = xgb_model.predict(np.concatenate([model_lstm.predict(last_seq, verbose=0), features_scaled[-1].reshape(1, -1)], axis=1))
-    return target_scaler.inverse_transform(pred_scaled.reshape(-1, 1))[0][0]
-
-@st.cache_resource(show_spinner=False)
-def load_sentiment_model():
-    return pipeline("sentiment-analysis", model="ProsusAI/finbert")
-
-@st.cache_data(ttl=300, show_spinner=False)
 def fetch_real_news_and_sentiment():
     articles = []
+    seen_titles = set() # Deduplication Memory
     
-    # The "God-Tier" Aggregator List: News + Social + Video
-    feeds = [
-        # --- SOCIAL MEDIA (Reddit) ---
-        {"url": "https://www.reddit.com/r/CryptoCurrency/top/.rss?t=day", "name": "Reddit (r/CryptoCurrency)"},
-        {"url": "https://www.reddit.com/r/Bitcoin/top/.rss?t=day", "name": "Reddit (r/Bitcoin)"},
-        {"url": "https://www.reddit.com/r/cryptofinance/top/.rss?t=day", "name": "Reddit (r/CryptoFinance)"},
+    # Helper to prevent duplicate headlines across platforms
+    def add_article(title, source):
+        norm_title = title.lower().strip()
+        if norm_title not in seen_titles:
+            seen_titles.add(norm_title)
+            articles.append({"title": title, "source": source})
+
+    # --- 1. CRYPTOPANIC API (Goal: 20 Articles) ---
+    PANIC_TOKEN = "948e7ca29eae0874608f78be63530199af766176" 
+    try:
+        panic_url = f"https://cryptopanic.com/api/v1/posts/?auth_token={PANIC_TOKEN}&public=true"
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        panic_res = requests.get(panic_url, headers=headers, timeout=5).json()
         
-        # --- VIDEO PLATFORMS (YouTube) ---
-        # Note: These use the hidden YouTube XML feed structures
-        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCqK_GSMbpiV8spgD3ZGloSw", "name": "YouTube (Coin Bureau)"},
-        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCgyvtPqqMOU3A4hO-yoeHIA", "name": "YouTube (Altcoin Daily)"},
-        
-        # --- TRADITIONAL INSTITUTIONAL NEWS ---
+        # Grab exactly 20 posts (One full API page)
+        for post in panic_res.get('results', [])[:20]: 
+            source_name = post.get('source', {}).get('domain', 'CryptoPanic')
+            add_article(post['title'], source_name)
+    except Exception: pass
+
+    # --- GLOBAL RSS HEADERS (Anti-Bot Bypass) ---
+    rss_headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
+
+    # --- 2. REDDIT SOCIAL INTELLIGENCE (Goal: 20 Posts -> 4 Subs x 5 Posts) ---
+    reddit_feeds = [
+        {"url": "https://www.reddit.com/r/CryptoCurrency/top/.rss?t=day", "name": "r/CryptoCurrency"},
+        {"url": "https://www.reddit.com/r/Bitcoin/top/.rss?t=day", "name": "r/Bitcoin"},
+        {"url": "https://www.reddit.com/r/ethereum/top/.rss?t=day", "name": "r/Ethereum"},
+        {"url": "https://www.reddit.com/r/cryptofinance/top/.rss?t=day", "name": "r/CryptoFinance"}
+    ]
+    for feed in reddit_feeds:
+        try:
+            res = requests.get(feed["url"], headers=rss_headers, timeout=4)
+            parsed = feedparser.parse(res.content)
+            for entry in parsed.entries[:5]: add_article(entry.title, feed["name"])
+        except: continue
+
+    # --- 3. YOUTUBE VIDEO INTELLIGENCE (Goal: 20 Videos -> 5 Channels x 4 Videos) ---
+    yt_feeds = [
+        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCqK_GSMbpiV8spgD3ZGloSw", "name": "YT: Coin Bureau"},
+        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCgyvtPqqMOU3A4hO-yoeHIA", "name": "YT: Altcoin Daily"},
+        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCRvqjQPSeaWn-uEx-w0VuOQ", "name": "YT: Benjamin Cowen"},
+        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCpqqMN0R6I_N7k2iU5I99hQ", "name": "YT: Bankless"},
+        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCCatR7nWbYkcVXx-XKQ5iA", "name": "YT: DataDash"}
+    ]
+    for feed in yt_feeds:
+        try:
+            res = requests.get(feed["url"], headers=rss_headers, timeout=4)
+            parsed = feedparser.parse(res.content)
+            for entry in parsed.entries[:4]: add_article(entry.title, feed["name"])
+        except: continue
+
+    # --- 4. INSTITUTIONAL NEWS (Goal: 20 Articles -> 10 Sites x 2 Articles) ---
+    news_feeds = [
         {"url": "https://cointelegraph.com/rss", "name": "Cointelegraph"},
         {"url": "https://www.coindesk.com/arc/outboundfeeds/rss/", "name": "CoinDesk"},
         {"url": "https://decrypt.co/feed", "name": "Decrypt"},
@@ -326,33 +332,27 @@ def fetch_real_news_and_sentiment():
         {"url": "https://cryptoslate.com/feed/", "name": "CryptoSlate"},
         {"url": "https://blockworks.co/feed", "name": "Blockworks"}
     ]
-    
-    # We must use a highly realistic User-Agent, or Reddit will block the connection
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    }
-    
-    for feed_info in feeds:
+    for feed in news_feeds:
         try:
-            res = requests.get(feed_info["url"], headers=headers, timeout=5)
-            parsed_feed = feedparser.parse(res.content)
-            # Grab the top 2 trending items from EACH of the 15 sources
-            for entry in parsed_feed.entries[:2]: 
-                articles.append({"title": entry.title, "source": feed_info["name"]})
-        except:
-            continue
-            
-    # Emergency Fallback
+            res = requests.get(feed["url"], headers=rss_headers, timeout=4)
+            parsed = feedparser.parse(res.content)
+            for entry in parsed.entries[:2]: add_article(entry.title, feed["name"])
+        except: continue
+
+    # --- EMERGENCY FALLBACK ---
     if not articles: 
         articles = [{"title": "Bitcoin resilience tested at key levels", "source": "System Node"}]
+
+    # Cap at exactly 80 to prevent memory overload
+    articles = articles[:80] 
         
-    # --- FinBERT Sentiment Processing ---
+    # --- 5. FINBERT SENTIMENT PROCESSING (HEAVY MATH) ---
     sentiment_pipeline = load_sentiment_model()
     results = sentiment_pipeline([a["title"] for a in articles])
     for i, res in enumerate(results): 
         articles[i]["score"] = res['score'] if res['label'] == 'positive' else -res['score'] if res['label'] == 'negative' else random.uniform(-0.05, 0.05)
         
-    # Shuffle them so Reddit, YouTube, and News are mixed perfectly on the dashboard
+    # Shuffle the massive list so it looks like a continuous, organic matrix feed
     random.shuffle(articles)
     return articles
 
