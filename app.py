@@ -166,7 +166,7 @@ header[data-testid="stHeader"] { display: none !important; height: 0px !importan
         display: none !important;
     }
     div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) + div {
-        margin-bottom: -30px !important; /* <--- This negative margin removes the gap */
+        margin-bottom: -50px !important; /* <--- This negative margin removes the gap */
         position: relative;
         z-index: 9999;
     }
