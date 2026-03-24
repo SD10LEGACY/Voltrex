@@ -182,7 +182,7 @@ components.html(ticker_html, height=44)
 # ==========================================
 @st.cache_data(ttl=900, show_spinner=False)
 def fetch_binance_data():
-    client = Client("", "")
+    client = Client("", "", tld='us')
     klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_1DAY, "1 Jan, 2023", "today UTC")
     cols =['Open time', 'Open', 'High', 'Low', 'Close', 'Volume', 'Close time', 'Quote asset volume', 'Number of trades', 'Taker buy base', 'Taker buy quote', 'Ignore']
     df = pd.DataFrame(klines, columns=cols)
@@ -201,7 +201,7 @@ def fetch_binance_data():
 # --- FAST LIVE PRICE FETCHER ---
 def fetch_live_price():
     try:
-        r = requests.get("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=1)
+        r = requests.get("https://api.binance.us/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=3)
         data = r.json()
         return float(data['lastPrice']), float(data['volume'])
     except: return None, None
