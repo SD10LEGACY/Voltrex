@@ -298,42 +298,86 @@ def execute_hybrid_model(data_df):
 def load_sentiment_model():
     return pipeline("sentiment-analysis", model="ProsusAI/finbert")
 
+# THE 80-SOURCE GOD-TIER NLP ENGINE
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_real_news_and_sentiment():
-    PANIC_TOKEN = "948e7ca29eae0874608f78be63530199af766176" 
     articles = []
+    seen_titles = set()
     
-    # 1. Try CryptoPanic FIRST (With anti-bot headers and a 10-second timeout)
+    def add_article(title, source):
+        norm_title = title.lower().strip()
+        if norm_title not in seen_titles:
+            seen_titles.add(norm_title)
+            articles.append({"title": title, "source": source})
+
+    # 1. CryptoPanic API
+    PANIC_TOKEN = "948e7ca29eae0874608f78be63530199af766176" 
     try:
         panic_url = f"https://cryptopanic.com/api/v1/posts/?auth_token={PANIC_TOKEN}&public=true"
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        panic_res = requests.get(panic_url, headers=headers, timeout=10).json()
-        
-        for post in panic_res.get('results', [])[:6]: 
-            # Dynamically pull the actual website name (e.g., 'decrypt.co', 'theblock.co')
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        panic_res = requests.get(panic_url, headers=headers, timeout=5).json()
+        for post in panic_res.get('results', [])[:20]: 
             source_name = post.get('source', {}).get('domain', 'CryptoPanic')
-            articles.append({"title": post['title'], "source": source_name})
-    except Exception as e: 
-        pass
-        
-    # 2. Only use CryptoNews RSS as a BACKUP if CryptoPanic completely fails or times out
-    if len(articles) == 0:
+            add_article(post['title'], source_name)
+    except Exception: pass
+
+    # 2. Reddit Social Intelligence
+    rss_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+    reddit_feeds = [
+        {"url": "https://www.reddit.com/r/CryptoCurrency/top/.rss?t=day", "name": "r/CryptoCurrency"},
+        {"url": "https://www.reddit.com/r/Bitcoin/top/.rss?t=day", "name": "r/Bitcoin"},
+        {"url": "https://www.reddit.com/r/ethereum/top/.rss?t=day", "name": "r/Ethereum"},
+        {"url": "https://www.reddit.com/r/cryptofinance/top/.rss?t=day", "name": "r/CryptoFinance"}
+    ]
+    for feed in reddit_feeds:
         try:
-            headers = {'User-Agent': 'Mozilla/5.0'}; res = requests.get("https://cryptonews.com/news/rss/", headers=headers, timeout=5)
-            feed = feedparser.parse(res.content)
-            for entry in feed.entries[:6]: articles.append({"title": entry.title, "source": "CryptoNews"})
-        except: pass
+            res = requests.get(feed["url"], headers=rss_headers, timeout=4)
+            for entry in feedparser.parse(res.content).entries[:5]: add_article(entry.title, feed["name"])
+        except: continue
+
+    # 3. YouTube Video Intelligence
+    yt_feeds = [
+        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCqK_GSMbpiV8spgD3ZGloSw", "name": "YT: Coin Bureau"},
+        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCgyvtPqqMOU3A4hO-yoeHIA", "name": "YT: Altcoin Daily"},
+        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCRvqjQPSeaWn-uEx-w0VuOQ", "name": "YT: Benjamin Cowen"},
+        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCpqqMN0R6I_N7k2iU5I99hQ", "name": "YT: Bankless"},
+        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCCatR7nWbYkcVXx-XKQ5iA", "name": "YT: DataDash"}
+    ]
+    for feed in yt_feeds:
+        try:
+            res = requests.get(feed["url"], headers=rss_headers, timeout=4)
+            for entry in feedparser.parse(res.content).entries[:4]: add_article(entry.title, feed["name"])
+        except: continue
+
+    # 4. Institutional News RSS
+    news_feeds = [
+        {"url": "https://cointelegraph.com/rss", "name": "Cointelegraph"},
+        {"url": "https://www.coindesk.com/arc/outboundfeeds/rss/", "name": "CoinDesk"},
+        {"url": "https://decrypt.co/feed", "name": "Decrypt"},
+        {"url": "https://cryptopotato.com/feed/", "name": "CryptoPotato"},
+        {"url": "https://www.newsbtc.com/feed/", "name": "NewsBTC"},
+        {"url": "https://ambcrypto.com/feed/", "name": "AMBCrypto"},
+        {"url": "https://u.today/rss", "name": "U.Today"},
+        {"url": "https://bitcoinist.com/feed/", "name": "Bitcoinist"},
+        {"url": "https://cryptoslate.com/feed/", "name": "CryptoSlate"},
+        {"url": "https://blockworks.co/feed", "name": "Blockworks"}
+    ]
+    for feed in news_feeds:
+        try:
+            res = requests.get(feed["url"], headers=rss_headers, timeout=4)
+            for entry in feedparser.parse(res.content).entries[:2]: add_article(entry.title, feed["name"])
+        except: continue
+
+    if not articles: articles = [{"title": "Bitcoin resilience tested at key levels", "source": "System Node"}]
+    articles = articles[:80] 
         
-    # 3. Emergency Fallback if both APIs are down
-    if not articles: 
-        articles = [{"title": "Bitcoin resilience tested at key levels", "source": "ExpertNode"}]
-        
-    # --- FinBERT Sentiment Processing ---
+    # 5. FinBERT Scoring
     sentiment_pipeline = load_sentiment_model()
     results = sentiment_pipeline([a["title"] for a in articles])
     for i, res in enumerate(results): 
         articles[i]["score"] = res['score'] if res['label'] == 'positive' else -res['score'] if res['label'] == 'negative' else random.uniform(-0.05, 0.05)
         
+    random.shuffle(articles)
     return articles
 
 def generate_backtest_stats(df):
