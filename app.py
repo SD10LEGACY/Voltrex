@@ -34,6 +34,7 @@ st.markdown("""
     padding-right: 1rem !important;
     max-width: 100% !important;
     margin-top: -5rem !important; 
+    overflow-x: hidden;
 }
 header[data-testid="stHeader"] { display: none !important; height: 0px !important; }
 .block-container { padding: 0rem !important; max-width: 100% !important; margin-top: -5rem !important; }
@@ -46,6 +47,7 @@ header[data-testid="stHeader"] { display: none !important; height: 0px !importan
     font-family: 'Inter', sans-serif;
 }
 
+/* Base Top Nav Styles */
 .top-nav {
     display: flex; justify-content: space-between; align-items: center;
     padding: 12px 32px; background: rgba(13, 9, 20, 0.7);
@@ -147,6 +149,83 @@ header[data-testid="stHeader"] { display: none !important; height: 0px !importan
 
 .rp-leader-sec { border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px; font-size: 0.75rem; color: #8a849b; line-height: 1.5; }
 .contract-pill { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; margin-top: 15px; font-family: monospace; }
+
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* =========================================
+   RESPONSIVE LAYOUT ENGINE (GAP FIX)
+   ========================================= */
+
+/* --- DESKTOP STYLES (Show invisible tabs, hide mobile menu) --- */
+@media screen and (min-width: 769px) {
+    div[data-testid="stVerticalBlock"] > div:has(.mobile-nav-marker) { display: none !important; }
+    div[data-testid="stVerticalBlock"] > div:has(.mobile-nav-marker) + div { display: none !important; }
+    
+    /* ERADICATE THE DESKTOP GAP: Pull the main content up over the ghost container */
+    div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) {
+        display: none !important;
+    }
+    div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) + div {
+        margin-bottom: -50px !important; /* <--- This negative margin removes the gap */
+        position: relative;
+        z-index: 9999;
+    }
+    
+    #desktop-nav-offset { margin-top: -65px; margin-left: 170px; }
+    
+    /* Make desktop columns invisible buttons */
+    div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) + div button {
+        background: transparent !important; border: none !important; color: transparent !important;
+        font-size: 0.85rem !important; font-weight: 500 !important; cursor: pointer !important;
+        padding: 0 !important; margin: 0 !important; box-shadow: none !important;
+    }
+}
+
+/* --- MOBILE STYLES (Hide desktop tabs, show burger menu) --- */
+@media screen and (max-width: 768px) {
+    [data-testid="stAppViewBlockContainer"] { padding: 0.5rem !important; margin-top: -3rem !important; }
+    
+    /* ERADICATE THE GHOST GAP by completely removing desktop columns from flow */
+    div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) { display: none !important; }
+    div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) + div { display: none !important; }
+    
+    /* Clean up the HTML top bar */
+    .top-nav { flex-direction: row; padding: 15px; align-items: center; justify-content: space-between; border-radius: 12px; margin-bottom: 5px; }
+    .nav-links { display: none !important; } 
+    .nav-right .nav-pill:nth-child(2), .lang-dropdown-wrapper, .faucet-btn { display: none !important; }
+    
+    /* Style the Mobile Burger Expander */
+    div[data-testid="stExpander"] {
+        background: rgba(18, 13, 28, 0.9) !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+        border-radius: 8px !important;
+        margin-bottom: 15px !important;
+    }
+    div[data-testid="stExpander"] summary p { color: #f5a623 !important; font-weight: 800 !important; font-size: 1.1rem !important; letter-spacing: 1px; }
+    
+    /* Style the big mobile buttons inside the expander */
+    div[data-testid="stExpanderDetails"] button {
+        background: rgba(255,255,255,0.05) !important; color: #ffffff !important;
+        border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 8px !important;
+        padding: 12px !important; font-size: 1rem !important; font-weight: 600 !important; margin-bottom: 8px !important; width: 100% !important;
+    }
+    div[data-testid="stExpanderDetails"] button:active { background: rgba(245, 166, 35, 0.2) !important; border-color: #f5a623 !important; }
+
+    /* Re-flow dashboard elements */
+    .stats-row { flex-wrap: wrap; padding: 5px; gap: 10px; justify-content: space-between; }
+    .stat-box { width: 47%; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.04); }
+    .chart-header { flex-direction: column; align-items: flex-start; padding: 10px 5px; gap: 15px; }
+    .epoch-dates { flex-wrap: wrap; gap: 8px; line-height: 1.6; }
+    .news-row-left { flex-direction: column; align-items: flex-start; gap: 5px; }
+    .n-badge { align-self: flex-start; margin-top: 5px; }
+    .perf-grid { grid-template-columns: 1fr; gap: 15px; }
+    .perf-table { font-size: 0.75rem; display: block; overflow-x: auto; white-space: nowrap; }
+    .right-panel-wrapper { padding: 10px 0; }
+    .rp-balances { flex-direction: column; gap: 15px; }
+    .rp-bal-col { text-align: left !important; }
+    .rp-input { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .about-grid { grid-template-columns: 1fr !important; }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -197,14 +276,6 @@ def fetch_binance_data():
     df['MACD'] = df['Close'].ewm(span=12).mean() - df['Close'].ewm(span=26).mean()
     df['OBV'] = (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
     return df.dropna()
-
-# --- FAST LIVE PRICE FETCHER ---
-def fetch_live_price():
-    try:
-        r = requests.get("https://api.binance.us/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=3)
-        data = r.json()
-        return float(data['lastPrice']), float(data['volume'])
-    except: return None, None
 
 @st.cache_resource(show_spinner=False)
 def execute_hybrid_model(data_df):
@@ -258,73 +329,112 @@ def generate_backtest_stats(df):
         rows += f"""<tr><td>{date}</td><td>${actual[i]:,.2f}</td><td>${predicted[i]:,.2f}</td><td class='{color}'>±${abs(diff):,.2f}</td></tr>"""
     return rows
 
-# --- GLOBAL DATA SYNC (Calculated once per run) ---
-with st.spinner("Connecting to Live Exchanges and NLP Nodes..."):
-    df_hist = fetch_binance_data()
-    prediction = execute_hybrid_model(df_hist)
-    articles = fetch_real_news_and_sentiment()
-    backtest_rows = generate_backtest_stats(df_hist)
+def fetch_live_price():
+    try:
+        r = requests.get("https://api.binance.us/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=3)
+        data = r.json()
+        return float(data['lastPrice']), float(data['volume'])
+    except: return None, None
 
-# --- LIVE DATA CALCULATIONS ---
+# --- GLOBAL DATA SYNC ---
+with st.spinner("Connecting to Live Exchanges and NLP Nodes..."):
+    df = fetch_binance_data()
+    prediction = execute_hybrid_model(df)
+    articles = fetch_real_news_and_sentiment()
+    backtest_rows = generate_backtest_stats(df)
+
+# ==========================================
+# 4. TAB STATE LOGIC & REAL-TIME UPDATES
+# ==========================================
+try: tab_param = st.query_params.get("tab", "Trade")
+except: tab_param = "Trade"
+
+try: lang_code = st.query_params.get("lang", "en")
+except: lang_code = "en"
+
+lang_map = {"en": "EN", "zh": "ZH", "hi": "HI", "bn": "BN"}
+current_lang = lang_map.get(lang_code, "EN")
+
+if 'last_tab' not in st.session_state: st.session_state.last_tab = tab_param
+if tab_param != st.session_state.last_tab:
+    st.session_state.loading_until = time.time() + 0.5 
+    st.session_state.last_tab = tab_param
+
+is_loading = 'loading_until' in st.session_state and time.time() < st.session_state.loading_until
+
 live_price, live_vol = fetch_live_price()
 if live_price is not None:
     current_price = live_price
     vol_24h = (live_vol * current_price) / 1_000_000
 else:
-    current_price = df_hist['Close'].iloc[-1]
-    vol_24h = df_hist['Volume'].iloc[-1] * current_price / 1_000_000
+    current_price = df['Close'].iloc[-1]
+    vol_24h = df['Volume'].iloc[-1] * current_price / 1_000_000
 
 price_diff = prediction - current_price
 diff_pct = (price_diff / current_price) * 100
 macro_score = sum([a['score'] for a in articles]) / len(articles) if articles else 0
-current_date = df_hist.index[-1].strftime('%Y.%m.%d')
-target_date = (df_hist.index[-1] + timedelta(days=1)).strftime('%Y.%m.%d')
+current_date = df.index[-1].strftime('%Y.%m.%d')
+target_date = (df.index[-1] + timedelta(days=1)).strftime('%Y.%m.%d')
 
-# ==========================================
-# 4. TAB STATE LOGIC (FIXED)
-# ==========================================
-try:
-    tab_param = st.query_params.get("tab", "Trade")
-except:
-    tab_param = "Trade"
-
-try:
-    lang_code = st.query_params.get("lang", "en")
-except:
-    lang_code = "en"
-
-lang_map = {"en": "EN", "zh": "ZH", "hi": "HI", "bn": "BN"}
-current_lang = lang_map.get(lang_code, "EN")
-
-# TOP NAVIGATION (Links with query params guarantee correct state)
+# TOP HTML NAVIGATION
 st.markdown(f"""
 <div class="top-nav">
-<div class="nav-left">
-<div class="logo-container"><div class="logo-icon"></div> Voltrex</div>
-<div class="nav-links">
-<a href="?tab=Trade" target="_self" class="{'active' if tab_param == 'Trade' else ''}">Trade</a>
-<a href="?tab=Vault" target="_self" class="{'active' if tab_param == 'Vault' else ''}">Vault</a>
-<a href="?tab=Compete" target="_self" class="{'active' if tab_param == 'Compete' else ''}">Compete</a>
-<a href="?tab=Activity" target="_self" class="{'active' if tab_param == 'Activity' else ''}">Activity</a>
-<a href="?tab=About" target="_self" class="{'active' if tab_param == 'About' else ''}">About</a>
-</div>
-</div>
-<div class="nav-right">
-<div class="nav-pill" style="color: #fff; font-weight: 600;">{(current_price*83.5):,.2f}₹ (1.00 BTC)</div>
-<div class="nav-pill" style="color: #e2a8ff;"><span style="color:#8a849b;">💳</span> 0xBwqw...1248</div>
-<div class="lang-dropdown-wrapper">
-    <div class="lang-btn">🌐 {current_lang} ▾</div>
-    <div class="lang-menu"><div class="lang-menu-content">
-        <a href="?lang=en&tab={tab_param}" target="_self" class="lang-item">🇬🇧 English</a>
-        <a href="?lang=zh&tab={tab_param}" target="_self" class="lang-item">🇨🇳 Mandarin</a>
-        <a href="?lang=hi&tab={tab_param}" target="_self" class="lang-item">🇮🇳 Hindi</a>
-        <a href="?lang=bn&tab={tab_param}" target="_self" class="lang-item">🇧🇩 Bengali</a>
-    </div></div>
-</div>
-<div class="faucet-btn">Sync Data</div>
-</div>
+    <div class="nav-left">
+        <div class="logo-container"><div class="logo-icon"></div> Voltrex</div>
+        <div class="nav-links">
+            <a href="?tab=Trade" target="_self" class="{'active' if tab_param == 'Trade' else ''}">Trade</a>
+            <a href="?tab=Vault" target="_self" class="{'active' if tab_param == 'Vault' else ''}">Vault</a>
+            <a href="?tab=Compete" target="_self" class="{'active' if tab_param == 'Compete' else ''}">Compete</a>
+            <a href="?tab=Activity" target="_self" class="{'active' if tab_param == 'Activity' else ''}">Activity</a>
+            <a href="?tab=About" target="_self" class="{'active' if tab_param == 'About' else ''}">About</a>
+        </div>
+    </div>
+    <div class="nav-right">
+        <div class="nav-pill" style="color: #fff; font-weight: 600;">{(current_price*83.5):,.2f}₹ (1.00 BTC)</div>
+        <div class="nav-pill" style="color: #e2a8ff;"><span style="color:#8a849b;">💳</span> 0xBwqw...1248</div>
+        <div class="lang-dropdown-wrapper">
+            <div class="lang-btn">🌐 {current_lang} ▾</div>
+            <div class="lang-menu"><div class="lang-menu-content">
+                <a href="?lang=en&tab={tab_param}" target="_self" class="lang-item">🇬🇧 English</a>
+                <a href="?lang=zh&tab={tab_param}" target="_self" class="lang-item">🇨🇳 Mandarin</a>
+                <a href="?lang=hi&tab={tab_param}" target="_self" class="lang-item">🇮🇳 Hindi</a>
+                <a href="?lang=bn&tab={tab_param}" target="_self" class="lang-item">🇧🇩 Bengali</a>
+            </div></div>
+        </div>
+        <div class="faucet-btn">Sync Data</div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
+
+
+# ----------------------------------------------------
+# RESPONSIVE ROUTING: DESKTOP vs MOBILE MENUS
+# ----------------------------------------------------
+
+# 1. Desktop Hidden Button Columns (Deleted by CSS on Mobile)
+st.markdown("<span class='desktop-nav-marker'></span>", unsafe_allow_html=True)
+c1, c2, c3, c4, c5, c_spacer = st.columns([0.6, 0.6, 0.8, 0.7, 0.7, 7])
+with c1: 
+    st.markdown("<div id='desktop-nav-offset'></div>", unsafe_allow_html=True)
+    if st.button("Trade", key="d1", use_container_width=True): st.query_params["tab"] = "Trade"
+with c2: 
+    if st.button("Vault", key="d2", use_container_width=True): st.query_params["tab"] = "Vault"
+with c3: 
+    if st.button("Compete", key="d3", use_container_width=True): st.query_params["tab"] = "Compete"
+with c4: 
+    if st.button("Activity", key="d4", use_container_width=True): st.query_params["tab"] = "Activity"
+with c5: 
+    if st.button("About", key="d5", use_container_width=True): st.query_params["tab"] = "About"
+
+# 2. Mobile Burger Expander (Deleted by CSS on Desktop)
+st.markdown("<span class='mobile-nav-marker'></span>", unsafe_allow_html=True)
+with st.expander("☰ MENU", expanded=False):
+    if st.button("Trade Dashboard", key="m1", use_container_width=True): st.query_params["tab"] = "Trade"
+    if st.button("System Vault", key="m2", use_container_width=True): st.query_params["tab"] = "Vault"
+    if st.button("AI Compete", key="m3", use_container_width=True): st.query_params["tab"] = "Compete"
+    if st.button("Activity Logs", key="m4", use_container_width=True): st.query_params["tab"] = "Activity"
+    if st.button("About Project", key="m5", use_container_width=True): st.query_params["tab"] = "About"
+
 
 # ==========================================
 # 5. MAIN CONTENT RENDERING
@@ -332,122 +442,129 @@ st.markdown(f"""
 col_main, col_side = st.columns([7.2, 2.8])
 
 with col_main:
-    # --- TAB: TRADE (MAIN DASHBOARD) ---
-    if tab_param == "Trade":
-        trend_color = "text-green" if diff_pct > 0 else "text-red"
-        st.markdown(f"""
-        <div class="stats-row">
-        <div class="stat-box"><span class="stat-title">BTC Spot Price</span><span class="stat-val {trend_color}">${current_price:,.2f}</span></div>
-        <div class="stat-box"><span class="stat-title">H-V8 Target (T+1)</span><span class="stat-val">${prediction:,.2f}</span></div>
-        <div class="stat-box"><span class="stat-title">Network Directive</span><span class="stat-val">{"STRONG BUY" if diff_pct > 0 else "LIQUIDATE"}</span></div>
-        <div class="stat-box"><span class="stat-title">24H Volume (USD)</span><span class="stat-val">${vol_24h:,.1f}M</span></div>
-        <div class="stat-box"><span class="stat-title">Projected Delta</span><span class="stat-val {trend_color}">{diff_pct:+.2f}%</span></div>
+    if is_loading:
+        st.markdown(f'''
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; width: 100%;">
+            <div style="width: 50px; height: 50px; border: 3px solid rgba(245, 166, 35, 0.2); border-radius: 50%; border-top-color: #f5a623; animation: spin 1s linear infinite;"></div>
+            <div style="margin-top:20px; color:#8a849b; font-weight:600; letter-spacing:2px; font-size:0.8rem;">ACCESSING {tab_param.upper()} SECURE NODE...</div>
         </div>
-        <div class="chart-header">
-        <div style="display: flex; gap: 15px; align-items: center;"><div class="epoch-pill"><span>📅</span> Horizon</div><div class="epoch-dates">{current_date} — {target_date} <span style="color: #fff; margin-left:15px;">Live Computation</span></div></div>
-        <div class="nav-links"><span class="active">Price Action</span><span>Volume</span></div>
-        </div>
-        <div class="chart-legend"><span>Base: <span>BTC</span></span> <span>Quote: <span>USDT</span></span> <span>Model: <span>LSTM</span></span> <span style="color:#8a849b">Accuracy: <span>94%</span></span></div>
-        """, unsafe_allow_html=True)
-        
-        # Inject live price into the plot data to make the graph jump in real time
-        plot_df = df_hist.iloc[-90:].copy()
-        if live_price is not None:
-            plot_df.loc[datetime.now(pd.Timestamp.now().tz)] = [current_price] * len(plot_df.columns)
-            
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=plot_df.index, y=plot_df['Close'], mode='lines', line=dict(color='#f5a623', width=2, shape='spline'), fill='tozeroy', fillcolor='rgba(245, 166, 35, 0.05)', name='BTC'))
-        fig.add_hline(y=prediction, line_dash="dash", line_color="#00ff9d" if price_diff > 0 else "#ff4d4d", opacity=0.5)
-        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=32, r=32, t=10, b=10), height=380, showlegend=False, xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.03)'), yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.03)', side='right'))
-        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-        
-        news_html = ""
-        for art in articles:
-            badge_class = "pos" if art['score'] > 0.1 else "neg" if art['score'] < -0.1 else "neu"
-            news_html += f"""<div class="news-row"><div class="news-row-left"><div class="n-source">{art['source']}</div><div class="n-title">{art['title']}</div></div><div class="n-badge {badge_class}">{art['score']*100:+.1f}%</div></div>"""
-        st.markdown(f"""<div class="news-feed-wrapper"><div class="sec-title">LIVE NLP INTELLIGENCE FEED</div><div class="news-scroll">{news_html}</div></div>""", unsafe_allow_html=True)
-
-    # --- TAB: VAULT (BACKTEST ACCURACY) ---
-    elif tab_param == "Vault":
-        st.markdown(f"""
-        <div class="performance-wrapper">
-            <div class="sec-title" style="margin-top:30px;">SYSTEM VAULT: ARCHIVAL PROOF & BACKTESTING</div>
-            <div class="perf-grid">
-                <div class="perf-card"><div class="perf-val">94.2%</div><div class="perf-label">Model Accuracy</div></div>
-                <div class="perf-card"><div class="perf-val">84.6%</div><div class="perf-label">Win Rate (30D)</div></div>
-                <div class="perf-card"><div class="perf-val">±29,324.52₹ ($312.45)</div><div class="perf-label">Mean Absolute Error (MAE)</div></div>
+        ''', unsafe_allow_html=True)
+    else:
+        # --- TAB: TRADE ---
+        if tab_param == "Trade":
+            trend_color = "text-green" if diff_pct > 0 else "text-red"
+            st.markdown(f"""
+            <div class="stats-row">
+            <div class="stat-box"><span class="stat-title">BTC Spot Price</span><span class="stat-val {trend_color}">${current_price:,.2f}</span></div>
+            <div class="stat-box"><span class="stat-title">H-V8 Target (T+1)</span><span class="stat-val">${prediction:,.2f}</span></div>
+            <div class="stat-box"><span class="stat-title">Network Directive</span><span class="stat-val">{"STRONG BUY" if diff_pct > 0 else "LIQUIDATE"}</span></div>
+            <div class="stat-box"><span class="stat-title">24H Volume (USD)</span><span class="stat-val">${vol_24h:,.1f}M</span></div>
+            <div class="stat-box"><span class="stat-title">Projected Delta</span><span class="stat-val {trend_color}">{diff_pct:+.2f}%</span></div>
             </div>
-            <table class="perf-table">
-                <thead><tr><th>Epoch Date</th><th>Actual Price</th><th>H-V8 Forecast</th><th>Variance</th></tr></thead>
-                <tbody>{backtest_rows}</tbody>
-            </table>
-        </div>
-        """, unsafe_allow_html=True)
+            <div class="chart-header">
+            <div style="display: flex; gap: 15px; align-items: center;"><div class="epoch-pill"><span>📅</span> Horizon</div><div class="epoch-dates">{current_date} — {target_date} <span style="color: #fff; margin-left:15px;">Live Computation</span></div></div>
+            <div class="nav-links"><span class="active">Price Action</span><span>Volume</span></div>
+            </div>
+            <div class="chart-legend"><span>Base: <span>BTC</span></span> <span>Quote: <span>USDT</span></span> <span>Model: <span>LSTM</span></span> <span style="color:#8a849b">Accuracy: <span>94%</span></span></div>
+            """, unsafe_allow_html=True)
+            
+            plot_df = df.iloc[-90:].copy()
+            if live_price is not None:
+                plot_df.loc[pd.Timestamp.now(tz='UTC')] = pd.Series({'Close': current_price})
+            
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=plot_df.index, y=plot_df['Close'], mode='lines', line=dict(color='#f5a623', width=2, shape='spline'), fill='tozeroy', fillcolor='rgba(245, 166, 35, 0.05)', name='BTC'))
+            fig.add_hline(y=prediction, line_dash="dash", line_color="#00ff9d" if price_diff > 0 else "#ff4d4d", opacity=0.5)
+            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=32, r=32, t=10, b=10), height=380, showlegend=False, xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.03)'), yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.03)', side='right'))
+            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+            
+            news_html = ""
+            for art in articles:
+                badge_class = "pos" if art['score'] > 0.1 else "neg" if art['score'] < -0.1 else "neu"
+                news_html += f"""<div class="news-row"><div class="news-row-left"><div class="n-source">{art['source']}</div><div class="n-title">{art['title']}</div></div><div class="n-badge {badge_class}">{art['score']*100:+.1f}%</div></div>"""
+            st.markdown(f"""<div class="news-feed-wrapper"><div class="sec-title">LIVE NLP INTELLIGENCE FEED</div><div class="news-scroll">{news_html}</div></div>""", unsafe_allow_html=True)
 
-    # --- TAB: COMPETE (LEADERBOARD) ---
-    elif tab_param == "Compete":
-        st.markdown("<div style='padding:40px 32px;'><h2 style='color:#f5a623;'>AI LEADERBOARD</h2><p style='color:#8a849b;'>Voltrex Hybrid Architecture vs baseline models.</p></div>", unsafe_allow_html=True)
-        comp_df = pd.DataFrame({
-            "Architecture": ["Voltrex Hybrid V8 (LSTM+XGB)", "Standard LSTM", "Vanilla XGBoost", "Linear Regression"],
-            "Directional Accuracy": ["94.2%", "88.4%", "86.1%", "64.0%"],
-            "MAE (USD)": ["29,324.52₹ ($312.45)", "54,446.29₹ ($580.12)", "60,085.01₹ ($640.20)", "113,562.73₹ ($1,210.00)"],
-            "Rank": ["🏆 1st", "2nd", "3rd", "4th"]
-        })
-        st.table(comp_df)
+        # --- TAB: VAULT ---
+        elif tab_param == "Vault":
+            st.markdown(f"""
+            <div class="performance-wrapper">
+                <div class="sec-title" style="margin-top:30px;">SYSTEM VAULT: ARCHIVAL PROOF & BACKTESTING</div>
+                <div class="perf-grid">
+                    <div class="perf-card"><div class="perf-val">94.2%</div><div class="perf-label">Model Accuracy</div></div>
+                    <div class="perf-card"><div class="perf-val">84.6%</div><div class="perf-label">Win Rate (30D)</div></div>
+                    <div class="perf-card"><div class="perf-val">±29,324.52₹ ($312.45)</div><div class="perf-label">Mean Absolute Error (MAE)</div></div>
+                </div>
+                <table class="perf-table">
+                    <thead><tr><th>Epoch Date</th><th>Actual Price</th><th>H-V8 Forecast</th><th>Variance</th></tr></thead>
+                    <tbody>{backtest_rows}</tbody>
+                </table>
+            </div>
+            """, unsafe_allow_html=True)
 
-    # --- TAB: ACTIVITY (SYSTEM LOGS) ---
-    elif tab_param == "Activity":
-        st.markdown("<div style='padding:40px 32px;'><h2 style='color:#f5a623;'>REAL-TIME ACTIVITY LOGS</h2></div>", unsafe_allow_html=True)
-        current_time = datetime.now().strftime('%H:%M:%S')
-        logs = [
-            f"[{current_time}] PING: Connection to Binance API established.",
-            f"[{current_time}] PING: Connection to CryptoPanic API established.",
-            f"[{current_time}] PULL: Synchronizing last 30 daily candles for BTC/USDT.",
-            f"[{current_time}] CORE: Running Hybrid V8 Inference Engine...",
-            f"[{current_time}] SUCCESS: Calculation complete. Confidence level 94.2%."
-        ]
-        for log in logs: st.code(log)
+        # --- TAB: COMPETE ---
+        elif tab_param == "Compete":
+            st.markdown("<div style='padding:40px 32px;'><h2 style='color:#f5a623;'>AI LEADERBOARD</h2><p style='color:#8a849b;'>Voltrex Hybrid Architecture vs baseline models.</p></div>", unsafe_allow_html=True)
+            comp_df = pd.DataFrame({
+                "Architecture": ["Voltrex Hybrid V8 (LSTM+XGB)", "Standard LSTM", "Vanilla XGBoost", "Linear Regression"],
+                "Directional Accuracy": ["94.2%", "88.4%", "86.1%", "64.0%"],
+                "MAE (USD)": ["29,324.52₹ ($312.45)", "54,446.29₹ ($580.12)", "60,085.01₹ ($640.20)", "113,562.73₹ ($1,210.00)"],
+                "Rank": ["🏆 1st", "2nd", "3rd", "4th"]
+            })
+            st.table(comp_df)
 
-    # --- TAB: ABOUT (PROJECT INFO) ---
-    elif tab_param == "About":
-        st.markdown("""
-        <div style="padding:40px 32px;">
-        <h2 style="color:#f5a623; margin-bottom: 20px; font-weight: 800; letter-spacing: 1px;">VOLTREX QUANTITATIVE TERMINAL</h2>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
-        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 25px; border-radius: 12px;">
-        <h4 style="color: #00ff9d; margin-bottom: 15px; font-size: 0.9rem; letter-spacing: 1px; border-bottom: 1px solid rgba(0,255,157,0.2); padding-bottom: 8px;">ACADEMIC RESEARCH & TEAM</h4>
-        <p style="color: #8a849b; font-size: 0.85rem; line-height: 1.8;">
-        <strong style="color: #fff;">Team Members:</strong><br>
-        Snehashree Dutta, Shreyojit Das, Ushashee Das, Sirup Saha, Sneha Sarkar, Arindrajit Sadhukhan<br><br>
-        <strong style="color: #fff;">Research Guidance:</strong><br>
-        Prof. Ankita Mandal<br><br>
-        <strong style="color: #fff;">Institute:</strong><br>
-        Institute of Engineering & Management (IEM)<br><br>
-        <strong style="color: #fff;">University:</strong><br>
-        University of Engineering & Management (UEM)
-        </p>
-        </div>
-        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 25px; border-radius: 12px;">
-        <h4 style="color: #00ff9d; margin-bottom: 15px; font-size: 0.9rem; letter-spacing: 1px; border-bottom: 1px solid rgba(0,255,157,0.2); padding-bottom: 8px;">SYSTEM ARCHITECTURE & STACK</h4>
-        <p style="color: #8a849b; font-size: 0.85rem; line-height: 1.8;">
-        <strong style="color: #fff;">Core Languages:</strong> Python 3.11, HTML5, CSS3<br>
-        <strong style="color: #fff;">Frontend Framework:</strong> Streamlit<br>
-        <strong style="color: #fff;">Machine Learning (H-V8):</strong> TensorFlow (Keras), Long Short-Term Memory (LSTM), XGBoost Regressor, Scikit-Learn<br>
-        <strong style="color: #fff;">NLP Engine:</strong> HuggingFace Transformers (FinBERT)<br>
-        <strong style="color: #fff;">Data Pipelines:</strong> Binance REST API, CryptoPanic API, CryptoNews RSS<br>
-        <strong style="color: #fff;">Visualization:</strong> Plotly Graph Objects
-        </p>
-        </div>
-        </div>
-        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 25px; border-radius: 12px;">
-        <h4 style="color: #00ff9d; margin-bottom: 15px; font-size: 0.9rem; letter-spacing: 1px; border-bottom: 1px solid rgba(0,255,157,0.2); padding-bottom: 8px;">PROJECT DESCRIPTION</h4>
-        <p style="color: #d1d5db; font-size: 0.9rem; line-height: 1.8;">
-        Voltrex is an advanced quantitative trading terminal designed to forecast cryptocurrency asset trajectories (specifically BTC/USDT) using a proprietary <strong>Hybrid V8 Engine</strong>. By fusing deep learning (LSTM) for sequential time-series pattern recognition with gradient boosting (XGBoost) for robust feature extraction, the system achieves high-precision predictive modeling.<br><br>
-        This mathematical framework is further augmented by a real-time Natural Language Processing (NLP) node utilizing FinBERT to scrape and analyze global market sentiment from social and institutional news sources. The terminal provides a unified, institutional-grade dashboard for predictive analytics, backtesting validation, and real-time market tracking.
-        </p>
-        </div>
-        </div>
-        """, unsafe_allow_html=True)
+        # --- TAB: ACTIVITY ---
+        elif tab_param == "Activity":
+            st.markdown("<div style='padding:40px 32px;'><h2 style='color:#f5a623;'>REAL-TIME ACTIVITY LOGS</h2></div>", unsafe_allow_html=True)
+            current_time = datetime.now().strftime('%H:%M:%S')
+            logs = [
+                f"[{current_time}] PING: Connection to Binance API established.",
+                f"[{current_time}] PING: Connection to CryptoPanic API established.",
+                f"[{current_time}] PULL: Synchronizing last 30 daily candles for BTC/USDT.",
+                f"[{current_time}] CORE: Running Hybrid V8 Inference Engine...",
+                f"[{current_time}] SUCCESS: Calculation complete. Confidence level 94.2%."
+            ]
+            for log in logs: st.code(log)
+
+        # --- TAB: ABOUT ---
+        elif tab_param == "About":
+            st.markdown("""
+            <div style="padding:40px 32px;">
+            <h2 style="color:#f5a623; margin-bottom: 20px; font-weight: 800; letter-spacing: 1px;">VOLTREX QUANTITATIVE TERMINAL</h2>
+            <div class="about-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 25px; border-radius: 12px;">
+            <h4 style="color: #00ff9d; margin-bottom: 15px; font-size: 0.9rem; letter-spacing: 1px; border-bottom: 1px solid rgba(0,255,157,0.2); padding-bottom: 8px;">ACADEMIC RESEARCH & TEAM</h4>
+            <p style="color: #8a849b; font-size: 0.85rem; line-height: 1.8;">
+            <strong style="color: #fff;">Team Members:</strong><br>
+            Snehashree Dutta, Shreyojit Das, Ushashee Das, Sirup Saha, Sneha Sarkar, Arindrajit Sadhukhan<br><br>
+            <strong style="color: #fff;">Research Guidance:</strong><br>
+            Prof. Ankita Mandal<br><br>
+            <strong style="color: #fff;">Institute:</strong><br>
+            Institute of Engineering & Management (IEM)<br><br>
+            <strong style="color: #fff;">University:</strong><br>
+            University of Engineering & Management (UEM)
+            </p>
+            </div>
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 25px; border-radius: 12px;">
+            <h4 style="color: #00ff9d; margin-bottom: 15px; font-size: 0.9rem; letter-spacing: 1px; border-bottom: 1px solid rgba(0,255,157,0.2); padding-bottom: 8px;">SYSTEM ARCHITECTURE & STACK</h4>
+            <p style="color: #8a849b; font-size: 0.85rem; line-height: 1.8;">
+            <strong style="color: #fff;">Core Languages:</strong> Python 3.11, HTML5, CSS3<br>
+            <strong style="color: #fff;">Frontend Framework:</strong> Streamlit<br>
+            <strong style="color: #fff;">Machine Learning (H-V8):</strong> TensorFlow (Keras), Long Short-Term Memory (LSTM), XGBoost Regressor, Scikit-Learn<br>
+            <strong style="color: #fff;">NLP Engine:</strong> HuggingFace Transformers (FinBERT)<br>
+            <strong style="color: #fff;">Data Pipelines:</strong> Binance REST API, CryptoPanic API, CryptoNews RSS<br>
+            <strong style="color: #fff;">Visualization:</strong> Plotly Graph Objects
+            </p>
+            </div>
+            </div>
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 25px; border-radius: 12px;">
+            <h4 style="color: #00ff9d; margin-bottom: 15px; font-size: 0.9rem; letter-spacing: 1px; border-bottom: 1px solid rgba(0,255,157,0.2); padding-bottom: 8px;">PROJECT DESCRIPTION</h4>
+            <p style="color: #d1d5db; font-size: 0.9rem; line-height: 1.8;">
+            Voltrex is an advanced quantitative trading terminal designed to forecast cryptocurrency asset trajectories (specifically BTC/USDT) using a proprietary <strong>Hybrid V8 Engine</strong>. By fusing deep learning (LSTM) for sequential time-series pattern recognition with gradient boosting (XGBoost) for robust feature extraction, the system achieves high-precision predictive modeling.<br><br>
+            This mathematical framework is further augmented by a real-time Natural Language Processing (NLP) node utilizing FinBERT to scrape and analyze global market sentiment from social and institutional news sources. The terminal provides a unified, institutional-grade dashboard for predictive analytics, backtesting validation, and real-time market tracking.
+            </p>
+            </div>
+            </div>
+            """, unsafe_allow_html=True)
 
 with col_side:
     directive = "STRONG BUY" if (diff_pct > 0 and macro_score > 0) else "LIQUIDATE"
@@ -468,6 +585,5 @@ with col_side:
     </div></div>
     """, unsafe_allow_html=True)
 
-# THE LIVE HEARTBEAT LOOP
 time.sleep(1)
 st.rerun()
