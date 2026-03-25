@@ -11,3 +11,4 @@ feedparser
 transformers
 torch
 requests
+yfinance
