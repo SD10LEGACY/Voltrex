@@ -10,6 +10,7 @@ from xgboost import XGBRegressor
 import feedparser
 from transformers import pipeline
 import requests
+import yfinance as yf
 import warnings
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
@@ -400,12 +401,27 @@ def fetch_live_price():
         return float(data['lastPrice']), float(data['volume'])
     except: return None, None
 
+# --- NEW LIVE APIS ---
+@st.cache_data(ttl=3600, show_spinner=False)
+def fetch_forex_rate():
+    try: 
+        return float(yf.Ticker("USDINR=X").history(period="1d")['Close'].iloc[-1])
+    except: 
+        return 83.50
+
+# --- INDIAN RUPEE FORMATTER ---
+def format_inr(number):
+    s, *d = ("{:.2f}".format(number)).partition(".")
+    r = ",".join([s[x-2:x] for x in range(-3, -len(s), -2)][::-1] + [s[-3:]]) if len(s) > 3 else s
+    return "₹" + "".join([r] + d)
+
 # --- GLOBAL DATA SYNC ---
 with st.spinner("Connecting to Live Exchanges and NLP Nodes..."):
     df = fetch_binance_data()
     prediction = execute_hybrid_model(df)
     articles = fetch_real_news_and_sentiment()
     backtest_rows = generate_backtest_stats(df)
+    inr_rate = fetch_forex_rate()
 
 # ==========================================
 # 4. TAB STATE LOGIC & REAL-TIME UPDATES
@@ -454,7 +470,7 @@ st.markdown(f"""
         </div>
     </div>
     <div class="nav-right">
-        <div class="nav-pill" style="color: #fff; font-weight: 600;">{(current_price*83.5):,.2f}₹ (1.00 BTC)</div>
+        <div class="nav-pill" style="color: #fff; font-weight: 600;">{format_inr(current_price * inr_rate)} (1.00 BTC)</div>
         <div class="nav-pill" style="color: #e2a8ff;"><span style="color:#8a849b;">💳</span> 0xBwqw...1248</div>
         <div class="lang-dropdown-wrapper">
             <div class="lang-btn">🌐 {current_lang} ▾</div>
@@ -556,7 +572,7 @@ with col_main:
                 <div class="perf-grid">
                     <div class="perf-card"><div class="perf-val">94.2%</div><div class="perf-label">Model Accuracy</div></div>
                     <div class="perf-card"><div class="perf-val">84.6%</div><div class="perf-label">Win Rate (30D)</div></div>
-                    <div class="perf-card"><div class="perf-val">±29,324.52₹ ($312.45)</div><div class="perf-label">Mean Absolute Error (MAE)</div></div>
+                    <div class="perf-card"><div class="perf-val">±{format_inr(312.45 * inr_rate)} ($312.45)</div><div class="perf-label">Mean Absolute Error (MAE)</div></div>
                 </div>
                 <table class="perf-table">
                     <thead><tr><th>Epoch Date</th><th>Actual Price</th><th>H-V8 Forecast</th><th>Variance</th></tr></thead>
@@ -571,7 +587,7 @@ with col_main:
             comp_df = pd.DataFrame({
                 "Architecture": ["Voltrex Hybrid V8 (LSTM+XGB)", "Standard LSTM", "Vanilla XGBoost", "Linear Regression"],
                 "Directional Accuracy": ["94.2%", "88.4%", "86.1%", "64.0%"],
-                "MAE (USD)": ["29,324.52₹ ($312.45)", "54,446.29₹ ($580.12)", "60,085.01₹ ($640.20)", "113,562.73₹ ($1,210.00)"],
+                "MAE (USD)": [f"{format_inr(312.45 * inr_rate)} ($312.45)", f"{format_inr(580.12 * inr_rate)} ($580.12)", f"{format_inr(640.20 * inr_rate)} ($640.20)", f"{format_inr(1210.00 * inr_rate)} ($1,210.00)"],
                 "Rank": ["🏆 1st", "2nd", "3rd", "4th"]
             })
             st.table(comp_df)
@@ -636,7 +652,7 @@ with col_side:
     st.markdown(f"""
     <div class="right-panel-wrapper"><div class="right-panel">
     <div class="rp-tabs"><div class="rp-tab {'active-buy' if directive == 'STRONG BUY' else 'inactive'}">LONG</div><div class="rp-tab {'active-sell' if directive == 'LIQUIDATE' else 'inactive'}">SHORT</div></div>
-    <div class="rp-balances"><div class="rp-bal-col"><span>Capital Allocation</span><span class="rp-bal-val">1,262,329.51₹ ($13,450.00)</span></div><div class="rp-bal-col" style="text-align: right;"><span>Projected Value</span><span class="rp-bal-val {'text-green' if diff_pct > 0 else 'text-red'}">${13450 * (1 + (diff_pct/100)):,.2f}</span></div></div>
+    <div class="rp-balances"><div class="rp-bal-col"><span>Capital Allocation</span><span class="rp-bal-val">{format_inr(13450 * inr_rate)} ($13,450.00)</span></div><div class="rp-bal-col" style="text-align: right;"><span>Projected Value</span><span class="rp-bal-val {'text-green' if diff_pct > 0 else 'text-red'}">${13450 * (1 + (diff_pct/100)):,.2f}</span></div></div>
     <div class="rp-input-group"><div class="rp-label-row"><span>Target Execution Price</span></div><div class="rp-input"><span>${prediction:,.2f}</span><span class="text-max">TARGET</span></div></div>
     <div class="rp-input-group"><div class="rp-label-row"><span>Macro NLP Sentiment</span></div><div class="rp-input"><span>{"BULLISH" if macro_score > 0 else "BEARISH"}</span><span class="text-max" style="color: #f5a623;">Avg: {macro_score*100:+.1f}%</span></div></div>
     <div class="rp-summary"><div class="rp-summary-row"><span>Confidence</span><span style="color:#fff">94.2%</span></div><div class="rp-summary-row"><span>Directive</span><span class="{'text-green' if directive == 'STRONG BUY' else 'text-red'}">{directive}</span></div></div>
