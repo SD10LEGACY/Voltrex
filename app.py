@@ -92,18 +92,17 @@ header[data-testid="stHeader"] { display: none !important; height: 0px !importan
 .chart-legend { padding: 0 32px; font-size: 0.7rem; color: #8a849b; display: flex; gap: 15px; font-weight: 600; margin-bottom: 10px;}
 .chart-legend span span { color: #f5a623; }
 
-/* --- FIXED NEWS FEED STYLES --- */
 .news-feed-wrapper { padding: 10px 32px 30px 32px; }
 .sec-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 16px; color: #ffffff; text-transform: uppercase; letter-spacing: 1px; }
-.news-scroll { max-height: 300px; overflow-y: auto; padding-right: 5px; border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; background: rgba(18, 13, 28, 0.4); }
+.news-scroll { max-height: 240px; overflow-y: auto; padding-right: 10px; border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; background: rgba(18, 13, 28, 0.4); }
 .news-scroll::-webkit-scrollbar { width: 6px; }
 .news-scroll::-webkit-scrollbar-track { background: transparent; }
 .news-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
 
-.news-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.2s; gap: 15px;}
-.news-row-left { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; /* min-width 0 allows text truncation to work properly if needed later */ }
-.n-source { font-size: 0.7rem; color: #8a849b; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 4px; display: inline-block; align-self: flex-start;}
-.n-title { font-size: 0.9rem; color: #e2e8f0; font-weight: 500; line-height: 1.5; word-wrap: break-word; }
+.news-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.2s; }
+.news-row-left { display: flex; align-items: center; gap: 20px; flex: 1; }
+.n-source { font-size: 0.75rem; color: #8a849b; font-weight: 600; min-width: 100px; text-transform: uppercase; letter-spacing: 0.5px; }
+.n-title { font-size: 0.9rem; color: #e2e8f0; font-weight: 500; line-height: 1.4; }
 .n-badge { padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; text-align: center; min-width: 130px; }
 .n-badge.pos { background: rgba(0, 255, 157, 0.1); color: #00ff9d; border: 1px solid rgba(0, 255, 157, 0.2); }
 .n-badge.neg { background: rgba(255, 77, 77, 0.1); color: #ff4d4d; border: 1px solid rgba(255, 77, 77, 0.2); }
@@ -260,7 +259,7 @@ components.html(ticker_html, height=44)
 # ==========================================
 # 3. PYTHON MACHINE LEARNING BACKEND
 # ==========================================
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=900, show_spinner=False)
 def fetch_binance_data():
     client = Client("", "", tld='us')
     klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_1DAY, "1 Jan, 2023", "today UTC")
@@ -298,86 +297,23 @@ def execute_hybrid_model(data_df):
 def load_sentiment_model():
     return pipeline("sentiment-analysis", model="ProsusAI/finbert")
 
-# THE 80-SOURCE GOD-TIER NLP ENGINE
 @st.cache_data(ttl=1800, show_spinner=False)
 def fetch_real_news_and_sentiment():
-    articles = []
-    seen_titles = set()
-    
-    def add_article(title, source):
-        norm_title = title.lower().strip()
-        if norm_title not in seen_titles:
-            seen_titles.add(norm_title)
-            articles.append({"title": title, "source": source})
-
-    # 1. CryptoPanic API
     PANIC_TOKEN = "948e7ca29eae0874608f78be63530199af766176" 
+    articles = []
     try:
         panic_url = f"https://cryptopanic.com/api/v1/posts/?auth_token={PANIC_TOKEN}&public=true"
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        panic_res = requests.get(panic_url, headers=headers, timeout=5).json()
-        for post in panic_res.get('results', [])[:20]: 
-            source_name = post.get('source', {}).get('domain', 'CryptoPanic')
-            add_article(post['title'], source_name)
-    except Exception: pass
-
-    # 2. Reddit Social Intelligence
-    rss_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
-    reddit_feeds = [
-        {"url": "https://www.reddit.com/r/CryptoCurrency/top/.rss?t=day", "name": "r/CryptoCurrency"},
-        {"url": "https://www.reddit.com/r/Bitcoin/top/.rss?t=day", "name": "r/Bitcoin"},
-        {"url": "https://www.reddit.com/r/ethereum/top/.rss?t=day", "name": "r/Ethereum"},
-        {"url": "https://www.reddit.com/r/cryptofinance/top/.rss?t=day", "name": "r/CryptoFinance"}
-    ]
-    for feed in reddit_feeds:
-        try:
-            res = requests.get(feed["url"], headers=rss_headers, timeout=4)
-            for entry in feedparser.parse(res.content).entries[:5]: add_article(entry.title, feed["name"])
-        except: continue
-
-    # 3. YouTube Video Intelligence
-    yt_feeds = [
-        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCqK_GSMbpiV8spgD3ZGloSw", "name": "YT: Coin Bureau"},
-        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCgyvtPqqMOU3A4hO-yoeHIA", "name": "YT: Altcoin Daily"},
-        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCRvqjQPSeaWn-uEx-w0VuOQ", "name": "YT: Benjamin Cowen"},
-        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCpqqMN0R6I_N7k2iU5I99hQ", "name": "YT: Bankless"},
-        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCCatR7nWbYkcVXx-XKQ5iA", "name": "YT: DataDash"}
-    ]
-    for feed in yt_feeds:
-        try:
-            res = requests.get(feed["url"], headers=rss_headers, timeout=4)
-            for entry in feedparser.parse(res.content).entries[:4]: add_article(entry.title, feed["name"])
-        except: continue
-
-    # 4. Institutional News RSS
-    news_feeds = [
-        {"url": "https://cointelegraph.com/rss", "name": "Cointelegraph"},
-        {"url": "https://www.coindesk.com/arc/outboundfeeds/rss/", "name": "CoinDesk"},
-        {"url": "https://decrypt.co/feed", "name": "Decrypt"},
-        {"url": "https://cryptopotato.com/feed/", "name": "CryptoPotato"},
-        {"url": "https://www.newsbtc.com/feed/", "name": "NewsBTC"},
-        {"url": "https://ambcrypto.com/feed/", "name": "AMBCrypto"},
-        {"url": "https://u.today/rss", "name": "U.Today"},
-        {"url": "https://bitcoinist.com/feed/", "name": "Bitcoinist"},
-        {"url": "https://cryptoslate.com/feed/", "name": "CryptoSlate"},
-        {"url": "https://blockworks.co/feed", "name": "Blockworks"}
-    ]
-    for feed in news_feeds:
-        try:
-            res = requests.get(feed["url"], headers=rss_headers, timeout=4)
-            for entry in feedparser.parse(res.content).entries[:2]: add_article(entry.title, feed["name"])
-        except: continue
-
-    if not articles: articles = [{"title": "Bitcoin resilience tested at key levels", "source": "System Node"}]
-    articles = articles[:80] 
-        
-    # 5. FinBERT Scoring
-    sentiment_pipeline = load_sentiment_model()
-    results = sentiment_pipeline([a["title"] for a in articles])
-    for i, res in enumerate(results): 
-        articles[i]["score"] = res['score'] if res['label'] == 'positive' else -res['score'] if res['label'] == 'negative' else random.uniform(-0.05, 0.05)
-        
-    random.shuffle(articles)
+        panic_res = requests.get(panic_url, timeout=5).json()
+        for post in panic_res.get('results', [])[:5]: articles.append({"title": post['title'], "source": "PanicCrowd"})
+    except: pass
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0'}; res = requests.get("https://cryptonews.com/news/rss/", headers=headers, timeout=5)
+        feed = feedparser.parse(res.content)
+        for entry in feed.entries[:5]: articles.append({"title": entry.title, "source": "CryptoNews"})
+    except: pass
+    if not articles: articles = [{"title": "Bitcoin resilience tested at key levels", "source": "ExpertNode"}]
+    sentiment_pipeline = load_sentiment_model(); results = sentiment_pipeline([a["title"] for a in articles])
+    for i, res in enumerate(results): articles[i]["score"] = res['score'] if res['label'] == 'positive' else -res['score'] if res['label'] == 'negative' else random.uniform(-0.05, 0.05)
     return articles
 
 def generate_backtest_stats(df):
