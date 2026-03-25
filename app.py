@@ -260,7 +260,7 @@ components.html(ticker_html, height=44)
 # ==========================================
 # 3. PYTHON MACHINE LEARNING BACKEND
 # ==========================================
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def fetch_binance_data():
     client = Client("", "", tld='us')
     klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_1DAY, "1 Jan, 2023", "today UTC")
