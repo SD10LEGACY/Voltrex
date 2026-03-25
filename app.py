@@ -10,7 +10,6 @@ from xgboost import XGBRegressor
 import feedparser
 from transformers import pipeline
 import requests
-import yfinance as yf
 import warnings
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
@@ -102,7 +101,7 @@ header[data-testid="stHeader"] { display: none !important; height: 0px !importan
 .news-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
 
 .news-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.2s; gap: 15px;}
-.news-row-left { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+.news-row-left { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; /* min-width 0 allows text truncation to work properly if needed later */ }
 .n-source { font-size: 0.7rem; color: #8a849b; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 4px; display: inline-block; align-self: flex-start;}
 .n-title { font-size: 0.9rem; color: #e2e8f0; font-weight: 500; line-height: 1.5; word-wrap: break-word; }
 .n-badge { padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; text-align: center; min-width: 130px; }
@@ -158,19 +157,24 @@ header[data-testid="stHeader"] { display: none !important; height: 0px !importan
    RESPONSIVE LAYOUT ENGINE (GAP FIX)
    ========================================= */
 
+/* --- DESKTOP STYLES (Show invisible tabs, hide mobile menu) --- */
 @media screen and (min-width: 769px) {
     div[data-testid="stVerticalBlock"] > div:has(.mobile-nav-marker) { display: none !important; }
     div[data-testid="stVerticalBlock"] > div:has(.mobile-nav-marker) + div { display: none !important; }
     
-    div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) { display: none !important; }
+    /* ERADICATE THE DESKTOP GAP: Pull the main content up over the ghost container */
+    div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) {
+        display: none !important;
+    }
     div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) + div {
-        margin-bottom: -50px !important; 
+        margin-bottom: -50px !important; /* <--- This negative margin removes the gap */
         position: relative;
         z-index: 9999;
     }
     
     #desktop-nav-offset { margin-top: -65px; margin-left: 170px; }
     
+    /* Make desktop columns invisible buttons */
     div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) + div button {
         background: transparent !important; border: none !important; color: transparent !important;
         font-size: 0.85rem !important; font-weight: 500 !important; cursor: pointer !important;
@@ -178,20 +182,37 @@ header[data-testid="stHeader"] { display: none !important; height: 0px !importan
     }
 }
 
+/* --- MOBILE STYLES (Hide desktop tabs, show burger menu) --- */
 @media screen and (max-width: 768px) {
     [data-testid="stAppViewBlockContainer"] { padding: 0.5rem !important; margin-top: -3rem !important; }
+    
+    /* ERADICATE THE GHOST GAP by completely removing desktop columns from flow */
     div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) { display: none !important; }
     div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) + div { display: none !important; }
     
+    /* Clean up the HTML top bar */
     .top-nav { flex-direction: row; padding: 15px; align-items: center; justify-content: space-between; border-radius: 12px; margin-bottom: 5px; }
     .nav-links { display: none !important; } 
     .nav-right .nav-pill:nth-child(2), .lang-dropdown-wrapper, .faucet-btn { display: none !important; }
     
-    div[data-testid="stExpander"] { background: rgba(18, 13, 28, 0.9) !important; border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 8px !important; margin-bottom: 15px !important; }
+    /* Style the Mobile Burger Expander */
+    div[data-testid="stExpander"] {
+        background: rgba(18, 13, 28, 0.9) !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+        border-radius: 8px !important;
+        margin-bottom: 15px !important;
+    }
     div[data-testid="stExpander"] summary p { color: #f5a623 !important; font-weight: 800 !important; font-size: 1.1rem !important; letter-spacing: 1px; }
-    div[data-testid="stExpanderDetails"] button { background: rgba(255,255,255,0.05) !important; color: #ffffff !important; border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 8px !important; padding: 12px !important; font-size: 1rem !important; font-weight: 600 !important; margin-bottom: 8px !important; width: 100% !important; }
+    
+    /* Style the big mobile buttons inside the expander */
+    div[data-testid="stExpanderDetails"] button {
+        background: rgba(255,255,255,0.05) !important; color: #ffffff !important;
+        border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 8px !important;
+        padding: 12px !important; font-size: 1rem !important; font-weight: 600 !important; margin-bottom: 8px !important; width: 100% !important;
+    }
     div[data-testid="stExpanderDetails"] button:active { background: rgba(245, 166, 35, 0.2) !important; border-color: #f5a623 !important; }
 
+    /* Re-flow dashboard elements */
     .stats-row { flex-wrap: wrap; padding: 5px; gap: 10px; justify-content: space-between; }
     .stat-box { width: 47%; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.04); }
     .chart-header { flex-direction: column; align-items: flex-start; padding: 10px 5px; gap: 15px; }
@@ -379,36 +400,12 @@ def fetch_live_price():
         return float(data['lastPrice']), float(data['volume'])
     except: return None, None
 
-# --- NEW FOREX RATE FETCH ---
-@st.cache_data(ttl=3600, show_spinner=False)
-def fetch_forex_rate():
-    try: 
-        return float(yf.Ticker("USDINR=X").history(period="1d")['Close'].iloc[-1])
-    except: 
-        return 83.50
-
-# --- FORMAT INR MATHEMATICALLY ---
-def format_inr(number):
-    s, *d = ("{:.2f}".format(number)).partition(".")
-    res = ""
-    if len(s) > 3:
-        res = "," + s[-3:]
-        s = s[:-3]
-        while len(s) > 2:
-            res = "," + s[-2:] + res
-            s = s[:-2]
-        res = s + res
-    else:
-        res = s
-    return "₹" + res + "." + "".join(d)
-
 # --- GLOBAL DATA SYNC ---
 with st.spinner("Connecting to Live Exchanges and NLP Nodes..."):
     df = fetch_binance_data()
     prediction = execute_hybrid_model(df)
     articles = fetch_real_news_and_sentiment()
     backtest_rows = generate_backtest_stats(df)
-    inr_rate = fetch_forex_rate()
 
 # ==========================================
 # 4. TAB STATE LOGIC & REAL-TIME UPDATES
@@ -457,7 +454,7 @@ st.markdown(f"""
         </div>
     </div>
     <div class="nav-right">
-        <div class="nav-pill" style="color: #fff; font-weight: 600;">{format_inr(current_price * inr_rate)} (1.00 BTC)</div>
+        <div class="nav-pill" style="color: #fff; font-weight: 600;">{(current_price*83.5):,.2f}₹ (1.00 BTC)</div>
         <div class="nav-pill" style="color: #e2a8ff;"><span style="color:#8a849b;">💳</span> 0xBwqw...1248</div>
         <div class="lang-dropdown-wrapper">
             <div class="lang-btn">🌐 {current_lang} ▾</div>
@@ -559,7 +556,7 @@ with col_main:
                 <div class="perf-grid">
                     <div class="perf-card"><div class="perf-val">94.2%</div><div class="perf-label">Model Accuracy</div></div>
                     <div class="perf-card"><div class="perf-val">84.6%</div><div class="perf-label">Win Rate (30D)</div></div>
-                    <div class="perf-card"><div class="perf-val">±{format_inr(312.45 * inr_rate)} ($312.45)</div><div class="perf-label">Mean Absolute Error (MAE)</div></div>
+                    <div class="perf-card"><div class="perf-val">±29,324.52₹ ($312.45)</div><div class="perf-label">Mean Absolute Error (MAE)</div></div>
                 </div>
                 <table class="perf-table">
                     <thead><tr><th>Epoch Date</th><th>Actual Price</th><th>H-V8 Forecast</th><th>Variance</th></tr></thead>
@@ -574,7 +571,7 @@ with col_main:
             comp_df = pd.DataFrame({
                 "Architecture": ["Voltrex Hybrid V8 (LSTM+XGB)", "Standard LSTM", "Vanilla XGBoost", "Linear Regression"],
                 "Directional Accuracy": ["94.2%", "88.4%", "86.1%", "64.0%"],
-                "MAE (USD)": [f"{format_inr(312.45 * inr_rate)} ($312.45)", f"{format_inr(580.12 * inr_rate)} ($580.12)", f"{format_inr(640.20 * inr_rate)} ($640.20)", f"{format_inr(1210.00 * inr_rate)} ($1,210.00)"],
+                "MAE (USD)": ["29,324.52₹ ($312.45)", "54,446.29₹ ($580.12)", "60,085.01₹ ($640.20)", "113,562.73₹ ($1,210.00)"],
                 "Rank": ["🏆 1st", "2nd", "3rd", "4th"]
             })
             st.table(comp_df)
@@ -639,7 +636,7 @@ with col_side:
     st.markdown(f"""
     <div class="right-panel-wrapper"><div class="right-panel">
     <div class="rp-tabs"><div class="rp-tab {'active-buy' if directive == 'STRONG BUY' else 'inactive'}">LONG</div><div class="rp-tab {'active-sell' if directive == 'LIQUIDATE' else 'inactive'}">SHORT</div></div>
-    <div class="rp-balances"><div class="rp-bal-col"><span>Capital Allocation</span><span class="rp-bal-val">{format_inr(13450 * inr_rate)} ($13,450.00)</span></div><div class="rp-bal-col" style="text-align: right;"><span>Projected Value</span><span class="rp-bal-val {'text-green' if diff_pct > 0 else 'text-red'}">${13450 * (1 + (diff_pct/100)):,.2f}</span></div></div>
+    <div class="rp-balances"><div class="rp-bal-col"><span>Capital Allocation</span><span class="rp-bal-val">1,262,329.51₹ ($13,450.00)</span></div><div class="rp-bal-col" style="text-align: right;"><span>Projected Value</span><span class="rp-bal-val {'text-green' if diff_pct > 0 else 'text-red'}">${13450 * (1 + (diff_pct/100)):,.2f}</span></div></div>
     <div class="rp-input-group"><div class="rp-label-row"><span>Target Execution Price</span></div><div class="rp-input"><span>${prediction:,.2f}</span><span class="text-max">TARGET</span></div></div>
     <div class="rp-input-group"><div class="rp-label-row"><span>Macro NLP Sentiment</span></div><div class="rp-input"><span>{"BULLISH" if macro_score > 0 else "BEARISH"}</span><span class="text-max" style="color: #f5a623;">Avg: {macro_score*100:+.1f}%</span></div></div>
     <div class="rp-summary"><div class="rp-summary-row"><span>Confidence</span><span style="color:#fff">94.2%</span></div><div class="rp-summary-row"><span>Directive</span><span class="{'text-green' if directive == 'STRONG BUY' else 'text-red'}">{directive}</span></div></div>
@@ -652,6 +649,5 @@ with col_side:
     </div></div>
     """, unsafe_allow_html=True)
 
-# Disabled to prevent infinite loading loop and graph destruction
-# time.sleep(1)
-# st.rerun()
+time.sleep(1)
+st.rerun()
