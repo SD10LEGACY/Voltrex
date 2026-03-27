@@ -14,7 +14,6 @@ import warnings
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
 import random
-import time
 import yfinance as yf
 
 warnings.filterwarnings("ignore")
@@ -57,7 +56,7 @@ st.markdown("""
     overflow-x: hidden;
 }
 header[data-testid="stHeader"] { display: none !important; height: 0px !important; }
-.block-container { padding: 0rem !important; max-width: 100% !important; margin-top: -6rem !important; }
+.block-container { padding: 0rem !important; max-width: 100% !important; margin-top: -7rem !important; }
 #MainMenu, footer {visibility: hidden;}
 
 .stApp {
@@ -106,10 +105,6 @@ header[data-testid="stHeader"] { display: none !important; height: 0px !importan
   from { opacity: 0; transform: translateY(20px) scale(0.95); }
   to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
-@keyframes shimmerSweep {
-  0%   { background-position: -300% center; }
-  100% { background-position:  300% center; }
-}
 @keyframes buyGlow {
   0%,100% { box-shadow: 0 4px 20px rgba(0,255,157,0.25); }
   50%     { box-shadow: 0 4px 40px rgba(0,255,157,0.65), 0 0 70px rgba(0,255,157,0.15); }
@@ -133,40 +128,6 @@ header[data-testid="stHeader"] { display: none !important; height: 0px !importan
 @keyframes newsReveal {
   from { opacity: 0; transform: translateX(-16px); }
   to   { opacity: 1; transform: translateX(0); }
-}
-@keyframes spin         { 100% { transform: rotate(360deg); } }
-@keyframes spin-reverse { 100% { transform: rotate(-360deg); } }
-@keyframes pulse-text {
-  0%,100% { opacity: 1; }
-  50%     { opacity: 0.5; text-shadow: 0 0 20px rgba(0,255,157,0.8); }
-}
-@keyframes rippleOut {
-  0%   { transform: scale(0); opacity: 0.8; }
-  100% { transform: scale(4); opacity: 0; }
-}
-@keyframes cursorPulse {
-  0%,100% { transform: translate(-50%,-50%) scale(1); opacity: 0.7; }
-  50%     { transform: translate(-50%,-50%) scale(1.4); opacity: 0.4; }
-}
-@keyframes borderScan {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-@keyframes scanlineScroll {
-  0%   { background-position: 0 0; }
-  100% { background-position: 0 6px; }
-}
-
-/* ---- CURSOR GLOW DOT ---- */
-.vx-cursor {
-  width: 18px; height: 18px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(245,166,35,0.7) 0%, transparent 70%);
-  position: fixed; pointer-events: none; z-index: 9999999;
-  transform: translate(-50%, -50%);
-  transition: left 0.06s linear, top 0.06s linear;
-  mix-blend-mode: screen;
-  animation: cursorPulse 2s ease-in-out infinite;
 }
 
 /* ---- TOP NAV ENTRANCE ---- */
@@ -297,7 +258,7 @@ header[data-testid="stHeader"] { display: none !important; height: 0px !importan
   animation: statReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
 }
 .text-green { color: #00ff9d !important; animation: glowPulseGreen 3.2s ease-in-out infinite !important; }
-.text-red   { color: #ff4d4d !important; animation: glowPulseRed   3.2s ease-in-out infinite !important; }
+.text-red   { color: #ff4d4d !important; animation: glowPulseRed  3.2s ease-in-out infinite !important; }
 
 /* ---- CHART HEADER ---- */
 .chart-header {
@@ -315,6 +276,7 @@ header[data-testid="stHeader"] { display: none !important; height: 0px !importan
   border-color: rgba(245,166,35,0.35);
   transform: scale(1.04);
 }
+
 .epoch-dates { font-size: 0.75rem; color: #8a849b; display: flex; align-items: center; gap: 20px; }
 
 /* ---- CHART LEGEND — STAGGER ---- */
@@ -333,11 +295,6 @@ header[data-testid="stHeader"] { display: none !important; height: 0px !importan
 .chart-legend span:nth-child(4) { animation-delay: 0.60s; }
 .chart-legend span:hover { color: #ffffff; }
 .chart-legend span span { color: #f5a623; }
-
-/* ---- PLOTLY CHART FADE IN ---- */
-div[data-testid="stPlotlyChart"] {
-  animation: fadeSlideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
-}
 
 /* ---- NEWS FEED ---- */
 .news-feed-wrapper {
@@ -552,13 +509,6 @@ div[data-testid="stCode"]:hover { border-color: rgba(0,255,157,0.35) !important;
 div[data-testid="stTable"] tr { transition: background 0.2s ease; }
 div[data-testid="stTable"] tr:hover { background: rgba(245,166,35,0.05) !important; }
 
-/* ---- CUSTOM CYBER LOADER ---- */
-.cyber-loader { position: relative; width: 80px; height: 80px; }
-.cyber-loader div { position: absolute; border-radius: 50%; border: 3px solid transparent; }
-.cyber-loader .circle-1 { top: 0; left: 0; right: 0; bottom: 0; border-top-color: #00ff9d; border-bottom-color: #00ff9d; animation: spin 1.5s linear infinite; }
-.cyber-loader .circle-2 { top: 12px; left: 12px; right: 12px; bottom: 12px; border-left-color: #f5a623; border-right-color: #f5a623; animation: spin-reverse 1s linear infinite; }
-.cyber-loader .circle-3 { top: 24px; left: 24px; right: 24px; bottom: 24px; border-top-color: #e2a8ff; border-bottom-color: #e2a8ff; animation: spin 0.8s linear infinite; }
-
 /* ---- MOBILE ---- */
 @media screen and (min-width: 769px) {
     div[data-testid="stVerticalBlock"] > div:has(.mobile-nav-marker) { display: none !important; }
@@ -570,7 +520,6 @@ div[data-testid="stTable"] tr:hover { background: rgba(245,166,35,0.05) !importa
 }
 
 @media screen and (max-width: 768px) {
-    .vx-cursor { display: none; }
     [data-testid="stAppViewBlockContainer"] { padding: 0.5rem !important; margin-top: -3rem !important; }
     div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) { display: none !important; }
     div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) + div { display: none !important; }
@@ -606,108 +555,357 @@ ticker_html = """
 components.html(ticker_html, height=44)
 
 # ==========================================
-# MICRO-INTERACTION JS ENGINE (FIXED - now using components.html to prevent leakage)
+# MICRO-INTERACTION JS ENGINE & ASMR AUDIO
 # ==========================================
 js_html = """
-<div class="vx-cursor" id="vxCursor"></div>
 <script>
-(function() {
-  /* ---- Cursor Glow ---- */
-  var cur = document.getElementById('vxCursor');
-  if (cur && window.innerWidth > 768) {
-    document.addEventListener('mousemove', function(e) {
-      cur.style.left = e.clientX + 'px';
-      cur.style.top  = e.clientY + 'px';
-    });
-    document.addEventListener('mousedown', function() {
-      cur.style.transform = 'translate(-50%,-50%) scale(2.2)';
-      cur.style.opacity   = '0.9';
-    });
-    document.addEventListener('mouseup', function() {
-      cur.style.transform = 'translate(-50%,-50%) scale(1)';
-      cur.style.opacity   = '0.7';
-    });
-  }
+const parentDoc = window.parent.document;
+if (!parentDoc.getElementById("vx-core-engine")) {
+    const script = parentDoc.createElement("script");
+    script.id = "vx-core-engine";
+    script.innerHTML = `
+        // ASMR Audio Engine
+        var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function unlockAudio() {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            document.removeEventListener('click', unlockAudio);
+        }
+        document.addEventListener('click', unlockAudio);
 
-  /* ---- Click Ripple on interactive elements ---- */
-  var rippleStyle = document.createElement('style');
-  rippleStyle.textContent = '@keyframes vxRipple { 0% { transform:scale(0); opacity:0.75; } 100% { transform:scale(4); opacity:0; } }';
-  document.head.appendChild(rippleStyle);
+        function playTactileSound(type) {
+            if(audioCtx.state === 'suspended') return;
+            var osc = audioCtx.createOscillator();
+            var gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            var now = audioCtx.currentTime;
 
-  document.addEventListener('click', function(e) {
-    var target = e.target.closest('button, a, .btn-main-action, .faucet-btn, .rp-tab, .perf-card, .stat-box');
-    if (!target) return;
-    var ripple = document.createElement('span');
-    var rect   = target.getBoundingClientRect();
-    var size   = Math.max(rect.width, rect.height) * 2;
-    ripple.style.cssText = [
-      'position:absolute',
-      'border-radius:50%',
-      'width:'  + size + 'px',
-      'height:' + size + 'px',
-      'left:'   + (e.clientX - rect.left  - size/2) + 'px',
-      'top:'    + (e.clientY - rect.top   - size/2) + 'px',
-      'background:rgba(245,166,35,0.28)',
-      'transform:scale(0)',
-      'opacity:0.75',
-      'animation:vxRipple 0.65s ease-out forwards',
-      'pointer-events:none',
-      'z-index:9999'
-    ].join(';');
-    var prev = target.style.position;
-    var prevOv = target.style.overflow;
-    target.style.position = 'relative';
-    target.style.overflow = 'hidden';
-    target.appendChild(ripple);
-    setTimeout(function() {
-      ripple.remove();
-      target.style.position = prev;
-      target.style.overflow = prevOv;
-    }, 700);
-  });
+            if (type === 'hover') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1200, now);
+                osc.frequency.exponentialRampToValueAtTime(1800, now + 0.03);
+                gainNode.gain.setValueAtTime(0.015, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
+                osc.start(now);
+                osc.stop(now + 0.03);
+            } else if (type === 'click') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(30, now + 0.08);
+                gainNode.gain.setValueAtTime(0.04, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } else if (type === 'execute') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.15);
+                gainNode.gain.setValueAtTime(0.03, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            }
+        }
 
-  /* ---- Stagger news rows after DOM settles ---- */
-  function staggerNews() {
-    var rows = document.querySelectorAll('.news-row');
-    rows.forEach(function(row, i) {
-      row.style.animationDelay = (i * 0.04) + 's';
-    });
-  }
-  setTimeout(staggerNews, 800);
+        // Hover Events
+        var lastHover = null;
+        document.addEventListener('mouseover', function(e) {
+            var target = e.target.closest('button, a, .btn-main-action, .faucet-btn, .rp-tab, .perf-card, .stat-box, .nav-pill, .epoch-pill, .news-row');
+            if(target && target !== lastHover) {
+                playTactileSound('hover');
+                lastHover = target;
+            } else if (!target) {
+                lastHover = null;
+            }
+        });
 
-  /* ---- Subtle 3-D tilt on stat boxes ---- */
-  function applyTilt(el) {
-    el.addEventListener('mousemove', function(e) {
-      var rect = el.getBoundingClientRect();
-      var cx   = rect.left + rect.width  / 2;
-      var cy   = rect.top  + rect.height / 2;
-      var dx   = (e.clientX - cx) / (rect.width  / 2) * 6;
-      var dy   = (e.clientY - cy) / (rect.height / 2) * 6;
-      el.style.transform = 'perspective(800px) rotateY(' + dx + 'deg) rotateX(' + (-dy) + 'deg) translateY(-5px) scale(1.03)';
-    });
-    el.addEventListener('mouseleave', function() {
-      el.style.transform = '';
-    });
-  }
-  function initTilts() {
-    document.querySelectorAll('.stat-box, .perf-card').forEach(applyTilt);
-  }
-  setTimeout(initTilts, 900);
+        // Click Events & Ripples
+        var rippleStyle = document.createElement('style');
+        rippleStyle.textContent = '@keyframes vxRipple { 0% { transform:scale(0); opacity:0.75; } 100% { transform:scale(4); opacity:0; } }';
+        document.head.appendChild(rippleStyle);
 
-  /* ---- Pulse right-panel action button on first render ---- */
-  function pulseBtn() {
-    var btn = document.querySelector('.btn-main-action');
-    if (btn) {
-      btn.style.transition = 'transform 0.18s ease';
-      btn.style.transform  = 'scale(1.04)';
-      setTimeout(function() { btn.style.transform = ''; }, 260);
-    }
-  }
-  setTimeout(pulseBtn, 1400);
-})();
+        document.addEventListener('click', function(e) {
+            var target = e.target.closest('button, a, .btn-main-action, .faucet-btn, .rp-tab, .perf-card, .stat-box');
+            if (!target) return;
+            
+            if (target.classList.contains('btn-main-action')) {
+                playTactileSound('execute');
+            } else {
+                playTactileSound('click');
+            }
+
+            var ripple = document.createElement('span');
+            var rect   = target.getBoundingClientRect();
+            var size   = Math.max(rect.width, rect.height) * 2;
+            ripple.style.cssText = [
+                'position:absolute',
+                'border-radius:50%',
+                'width:'  + size + 'px',
+                'height:' + size + 'px',
+                'left:'   + (e.clientX - rect.left  - size/2) + 'px',
+                'top:'    + (e.clientY - rect.top   - size/2) + 'px',
+                'background:rgba(245,166,35,0.28)',
+                'transform:scale(0)',
+                'opacity:0.75',
+                'animation:vxRipple 0.65s ease-out forwards',
+                'pointer-events:none',
+                'z-index:9999'
+            ].join(';');
+            var prev = target.style.position;
+            var prevOv = target.style.overflow;
+            target.style.position = 'relative';
+            target.style.overflow = 'hidden';
+            target.appendChild(ripple);
+            setTimeout(function() {
+                ripple.remove();
+                target.style.position = prev;
+                target.style.overflow = prevOv;
+            }, 700);
+        });
+
+        // Mutation Observer for Streamlit dynamic dom changes
+        const observer = new MutationObserver(() => {
+            var rows = document.querySelectorAll('.news-row');
+            rows.forEach(function(row, i) { row.style.animationDelay = (i * 0.04) + 's'; });
+            
+            document.querySelectorAll('.stat-box, .perf-card').forEach(el => {
+                if(el.dataset.tiltInit) return;
+                el.dataset.tiltInit = true;
+                el.addEventListener('mousemove', function(e) {
+                    var rect = el.getBoundingClientRect();
+                    var cx   = rect.left + rect.width  / 2;
+                    var cy   = rect.top  + rect.height / 2;
+                    var dx   = (e.clientX - cx) / (rect.width  / 2) * 6;
+                    var dy   = (e.clientY - cy) / (rect.height / 2) * 6;
+                    el.style.transform = 'perspective(800px) rotateY(' + dx + 'deg) rotateX(' + (-dy) + 'deg) translateY(-5px) scale(1.03)';
+                });
+                el.addEventListener('mouseleave', function() { el.style.transform = ''; });
+            });
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    `;
+    parentDoc.head.appendChild(script);
+}
 </script>
 """
-components.html(js_html, height=0)
+components.html(js_html, height=0, width=0)
+
+# ==========================================
+# EASTER EGG: FLAPPY BIRD CHEAT CODE WITH GLOBAL DB
+# ==========================================
+flappy_html = """
+<script>
+const doc = window.parent.document;
+if (!doc.getElementById("vx-flappy-engine")) {
+    const fScript = doc.createElement("script");
+    fScript.id = "vx-flappy-engine";
+    fScript.innerHTML = `
+        let typed = '';
+        document.addEventListener('keydown', (e) => {
+            if (e.key && e.key.length === 1) {
+                typed += e.key.toLowerCase();
+                if (typed.length > 6) typed = typed.slice(-6);
+                if (typed === 'flappy') {
+                    typed = '';
+                    launchFlappy();
+                }
+            }
+        });
+
+        function launchFlappy() {
+            if (document.getElementById('flappy-modal')) return;
+
+            // UI Overlay
+            const modal = document.createElement('div');
+            modal.id = 'flappy-modal';
+            modal.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11, 7, 20, 0.95); z-index:9999999; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:"Inter", sans-serif; backdrop-filter:blur(12px);';
+            
+            modal.innerHTML = \\`
+                <h1 style="color:#00ff9d; text-shadow:0 0 20px rgba(0,255,157,0.5); font-weight:800; letter-spacing:4px; margin-bottom:15px; font-size:2rem;">VOLTREX BIRD</h1>
+                <div style="display:flex; gap:40px; margin-bottom:20px; color:#f5a623; font-weight:800; font-size:1.2rem; letter-spacing:1px;">
+                    <div>SCORE: <span id="fb-score" style="color:#fff;">0</span></div>
+                    <div>GLOBAL HIGH: <span id="fb-high" style="color:#fff;">Loading...</span></div>
+                </div>
+                <canvas id="fb-canvas" width="400" height="500" style="border:2px solid rgba(255,255,255,0.05); border-radius:12px; box-shadow:0 0 50px rgba(245,166,35,0.15); background:#120e18; cursor:pointer;"></canvas>
+                <p style="color:#8a849b; margin-top:20px; font-weight:600; font-size:0.9rem;">Press SPACE or Click to Jump. Press ESC to exit.</p>
+            \\`;
+            document.body.appendChild(modal);
+
+            const cvs = document.getElementById('fb-canvas');
+            const ctx = cvs.getContext('2d');
+            const scoreEl = document.getElementById('fb-score');
+            const highEl = document.getElementById('fb-high');
+
+            // Game Variables
+            let frames = 0, score = 0, gameActive = true;
+            const gravity = 0.35;
+            const bird = { x: 80, y: 250, r: 14, v: 0, jump: -6.5 };
+            const pipes = [];
+            const pWidth = 60, pGap = 160;
+
+            // Global High Score Integration
+            let globalHighScore = 0;
+            const kvdbUrl = 'https://kvdb.io/V8FlappyVoltrex/highscore';
+
+            fetch(kvdbUrl)
+                .then(r => r.text())
+                .then(val => {
+                    let parsed = parseInt(val);
+                    if(!isNaN(parsed)) {
+                        globalHighScore = parsed;
+                        highEl.innerText = globalHighScore;
+                    } else {
+                        highEl.innerText = '0';
+                    }
+                }).catch(e => {
+                    highEl.innerText = 'Offline';
+                });
+
+            // Audio Synthesis
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            function sfx(type) {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+                
+                if (type === 'jump') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                    osc.start(now); osc.stop(now + 0.1);
+                } else if (type === 'point') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(880, now);
+                    osc.frequency.setValueAtTime(1200, now + 0.05);
+                    gain.gain.setValueAtTime(0.03, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                    osc.start(now); osc.stop(now + 0.15);
+                } else if (type === 'crash') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.exponentialRampToValueAtTime(10, now + 0.3);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
+                }
+            }
+
+            // Loop & Logic
+            function render() {
+                ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+                // Draw Bird (Voltrex Amber)
+                ctx.beginPath();
+                ctx.arc(bird.x, bird.y, bird.r, 0, Math.PI*2);
+                ctx.fillStyle = '#f5a623';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#f5a623';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // Draw Pipes (Neon Green)
+                ctx.fillStyle = 'rgba(0, 255, 157, 0.85)';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#00ff9d';
+                pipes.forEach(p => {
+                    ctx.fillRect(p.x, 0, pWidth, p.top);
+                    ctx.fillRect(p.x, cvs.height - p.bottom, pWidth, p.bottom);
+                });
+                ctx.shadowBlur = 0;
+            }
+
+            function update() {
+                if(!gameActive) return;
+                frames++;
+                bird.v += gravity;
+                bird.y += bird.v;
+
+                if(frames % 110 === 0) {
+                    let top = Math.random() * (cvs.height - pGap - 60) + 30;
+                    let bottom = cvs.height - pGap - top;
+                    pipes.push({ x: cvs.width, top: top, bottom: bottom, passed: false });
+                }
+
+                pipes.forEach((p, i) => {
+                    p.x -= 2.8;
+
+                    // Hitbox Collision
+                    if(bird.x + bird.r > p.x && bird.x - bird.r < p.x + pWidth) {
+                        if(bird.y - bird.r < p.top || bird.y + bird.r > cvs.height - p.bottom) crash();
+                    }
+                    // Score
+                    if(p.x + pWidth < bird.x && !p.passed) {
+                        score++; scoreEl.innerText = score;
+                        p.passed = true; sfx('point');
+                    }
+                    if(p.x + pWidth < 0) pipes.splice(i, 1);
+                });
+
+                // Floor/Ceiling
+                if(bird.y + bird.r >= cvs.height || bird.y - bird.r <= 0) crash();
+            }
+
+            function crash() {
+                gameActive = false;
+                sfx('crash');
+
+                // Update Global Score if beaten
+                if (score > globalHighScore) {
+                    globalHighScore = score;
+                    highEl.innerText = globalHighScore;
+                    fetch(kvdbUrl, { method: 'POST', body: score.toString() }).catch(e=>console.log(e));
+                }
+
+                ctx.fillStyle = 'rgba(255, 77, 77, 0.8)';
+                ctx.fillRect(0,0,cvs.width,cvs.height);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 22px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText('CRASHED! Click to Restart', cvs.width/2, cvs.height/2);
+            }
+
+            function loop() {
+                update();
+                render();
+                if(gameActive) requestAnimationFrame(loop);
+            }
+
+            // Controls
+            function jump() {
+                if(!gameActive) {
+                    bird.y = 250; bird.v = 0; pipes.length = 0; score = 0; 
+                    scoreEl.innerText = score; frames = 0; gameActive = true; loop();
+                } else {
+                    bird.v = bird.jump; sfx('jump');
+                }
+            }
+
+            const keyHandler = (e) => {
+                if(e.code === 'Space') { e.preventDefault(); jump(); }
+                if(e.code === 'Escape') { 
+                    gameActive = false; 
+                    window.removeEventListener('keydown', keyHandler); 
+                    modal.remove(); 
+                }
+            };
+            
+            window.addEventListener('keydown', keyHandler);
+            cvs.addEventListener('mousedown', jump);
+            
+            loop();
+        }
+    `;
+    doc.head.appendChild(fScript);
+}
+</script>
+"""
+components.html(flappy_html, height=0, width=0)
 
 @st.cache_data(ttl=1800, show_spinner=False)
 def fetch_binance_data():
@@ -891,7 +1089,6 @@ def fetch_usd_inr():
 
 def switch_tab(tab_name):
     st.query_params["tab"] = tab_name
-    st.session_state.loading_until = time.time() + 0.6 
     st.session_state.last_tab = tab_name
     st.rerun()
 
@@ -916,11 +1113,6 @@ lang_map = {"en": "EN", "zh": "ZH", "hi": "HI", "bn": "BN"}
 current_lang = lang_map.get(lang_code, "EN")
 
 if 'last_tab' not in st.session_state: st.session_state.last_tab = tab_param
-if tab_param != st.session_state.last_tab:
-    st.session_state.loading_until = time.time() + 0.6 
-    st.session_state.last_tab = tab_param
-
-is_loading = 'loading_until' in st.session_state and time.time() < st.session_state.loading_until
 
 live_price, live_vol_usd = fetch_live_price()
 if live_price is not None:
@@ -1003,138 +1195,126 @@ with st.expander("☰ MENU", expanded=False):
 col_main, col_side = st.columns([7.2, 2.8])
 
 with col_main:
-    if is_loading:
-        st.markdown(f'''
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; width: 100%;">
-            <div class="cyber-loader">
-                <div class="circle-1"></div>
-                <div class="circle-2"></div>
-                <div class="circle-3"></div>
-            </div>
-            <div style="margin-top:30px; color:#00ff9d; font-weight:800; letter-spacing:4px; font-size:0.9rem; animation: pulse-text 1.5s infinite;">ACCESSING {tab_param.upper()} NODE...</div>
+    # --- TAB: TRADE ---
+    if tab_param == "Trade":
+        trend_color = "text-green" if diff_pct > 0 else "text-red"
+        st.markdown(f"""
+        <div class="stats-row">
+        <div class="stat-box"><span class="stat-title">BTC Spot Price</span><span class="stat-val {trend_color}">${current_price:,.2f}</span></div>
+        <div class="stat-box"><span class="stat-title">Hybrid Model Target (T+1)</span><span class="stat-val">${prediction:,.2f}</span></div>
+        <div class="stat-box"><span class="stat-title">Network Directive</span><span class="stat-val">{"STRONG BUY" if diff_pct > 0 else "LIQUIDATE"}</span></div>
+        <div class="stat-box"><span class="stat-title">24H Volume (USD)</span><span class="stat-val">{vol_str}</span></div>
+        <div class="stat-box"><span class="stat-title">Projected Delta</span><span class="stat-val {trend_color}">{diff_pct:+.2f}%</span></div>
         </div>
-        ''', unsafe_allow_html=True)
-    else:
-        # --- TAB: TRADE ---
-        if tab_param == "Trade":
-            trend_color = "text-green" if diff_pct > 0 else "text-red"
-            st.markdown(f"""
-            <div class="stats-row">
-            <div class="stat-box"><span class="stat-title">BTC Spot Price</span><span class="stat-val {trend_color}">${current_price:,.2f}</span></div>
-            <div class="stat-box"><span class="stat-title">Hybrid Model Target (T+1)</span><span class="stat-val">${prediction:,.2f}</span></div>
-            <div class="stat-box"><span class="stat-title">Network Directive</span><span class="stat-val">{"STRONG BUY" if diff_pct > 0 else "LIQUIDATE"}</span></div>
-            <div class="stat-box"><span class="stat-title">24H Volume (USD)</span><span class="stat-val">{vol_str}</span></div>
-            <div class="stat-box"><span class="stat-title">Projected Delta</span><span class="stat-val {trend_color}">{diff_pct:+.2f}%</span></div>
-            </div>
-            <div class="chart-header">
-            <div style="display: flex; gap: 15px; align-items: center;"><div class="epoch-pill"><span>📅</span> Horizon</div><div class="epoch-dates">{current_date} — {target_date} <span style="color: #fff; margin-left:15px;">Live Computation</span></div></div>
-            <div class="nav-links"><span class="active">Price Action</span><span>Volume</span></div>
-            </div>
-            <div class="chart-legend"><span>Base: <span>BTC</span></span> <span>Quote: <span>USDT</span></span> <span>Model: <span>HYBRID MODEL</span></span> <span style="color:#8a849b">Accuracy: <span>94.2%</span></span></div>
-            """, unsafe_allow_html=True)
-            
-            plot_df = df.iloc[-90:].copy()
-            if live_price is not None:
-                plot_df.loc[pd.Timestamp.now(tz='UTC')] = pd.Series({'Close': current_price})
-            
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(x=plot_df.index, y=plot_df['Close'], mode='lines', line=dict(color='#f5a623', width=2, shape='spline'), fill='tozeroy', fillcolor='rgba(245, 166, 35, 0.05)', name='BTC'))
-            fig.add_hline(y=prediction, line_dash="dash", line_color="#00ff9d" if price_diff > 0 else "#ff4d4d", opacity=0.5)
-            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=32, r=32, t=10, b=10), height=380, showlegend=False, xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.03)'), yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.03)', side='right'))
-            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-            
-            news_html = ""
-            for art in articles:
-                badge_class = "pos" if art['score'] > 0.1 else "neg" if art['score'] < -0.1 else "neu"
-                news_html += f"""<div class="news-row"><div class="news-row-left"><div class="n-source">{art['source']}</div><div class="n-title">{art['title']}</div></div><div class="n-badge {badge_class}">{art['score']*100:+.1f}%</div></div>"""
-            st.markdown(f"""<div class="news-feed-wrapper"><div class="sec-title">LIVE NLP INTELLIGENCE FEED</div><div class="news-scroll">{news_html}</div></div>""", unsafe_allow_html=True)
+        <div class="chart-header">
+        <div style="display: flex; gap: 15px; align-items: center;"><div class="epoch-pill"><span>📅</span> Horizon</div><div class="epoch-dates">{current_date} — {target_date} <span style="color: #fff; margin-left:15px;">Live Computation</span></div></div>
+        <div class="nav-links"><span class="active">Price Action</span><span>Volume</span></div>
+        </div>
+        <div class="chart-legend"><span>Base: <span>BTC</span></span> <span>Quote: <span>USDT</span></span> <span>Model: <span>HYBRID MODEL</span></span> <span style="color:#8a849b">Accuracy: <span>94.2%</span></span></div>
+        """, unsafe_allow_html=True)
+        
+        plot_df = df.iloc[-90:].copy()
+        if live_price is not None:
+            plot_df.loc[pd.Timestamp.now(tz='UTC')] = pd.Series({'Close': current_price})
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=plot_df.index, y=plot_df['Close'], mode='lines', line=dict(color='#f5a623', width=2, shape='spline'), fill='tozeroy', fillcolor='rgba(245, 166, 35, 0.05)', name='BTC'))
+        fig.add_hline(y=prediction, line_dash="dash", line_color="#00ff9d" if price_diff > 0 else "#ff4d4d", opacity=0.5)
+        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=32, r=32, t=10, b=10), height=380, showlegend=False, xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.03)'), yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.03)', side='right'))
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key="live_btc_chart")
+        
+        news_html = ""
+        for art in articles:
+            badge_class = "pos" if art['score'] > 0.1 else "neg" if art['score'] < -0.1 else "neu"
+            news_html += f"""<div class="news-row"><div class="news-row-left"><div class="n-source">{art['source']}</div><div class="n-title">{art['title']}</div></div><div class="n-badge {badge_class}">{art['score']*100:+.1f}%</div></div>"""
+        st.markdown(f"""<div class="news-feed-wrapper"><div class="sec-title">LIVE NLP INTELLIGENCE FEED</div><div class="news-scroll">{news_html}</div></div>""", unsafe_allow_html=True)
 
-        # --- TAB: VAULT ---
-        elif tab_param == "Vault":
-            st.markdown(f"""
-            <div class="performance-wrapper">
-                <div class="sec-title" style="margin-top:30px;">SYSTEM VAULT: ARCHIVAL PROOF & BACKTESTING</div>
-                <div class="perf-grid">
-                    <div class="perf-card"><div class="perf-val">94.2%</div><div class="perf-label">Model Accuracy</div></div>
-                    <div class="perf-card"><div class="perf-val">84.6%</div><div class="perf-label">Win Rate (30D)</div></div>
-                    <div class="perf-card"><div class="perf-val">±{format_inr(312.45 * usd_inr_rate)} ($312.45)</div><div class="perf-label">Mean Absolute Error (MAE)</div></div>
-                </div>
-                <table class="perf-table">
-                    <thead><tr><th>Epoch Date</th><th>Actual Price</th><th>Hybrid Forecast</th><th>Variance</th></tr></thead>
-                    <tbody>{backtest_rows}</tbody>
-                </table>
+    # --- TAB: VAULT ---
+    elif tab_param == "Vault":
+        st.markdown(f"""
+        <div class="performance-wrapper">
+            <div class="sec-title" style="margin-top:30px;">SYSTEM VAULT: ARCHIVAL PROOF & BACKTESTING</div>
+            <div class="perf-grid">
+                <div class="perf-card"><div class="perf-val">94.2%</div><div class="perf-label">Model Accuracy</div></div>
+                <div class="perf-card"><div class="perf-val">84.6%</div><div class="perf-label">Win Rate (30D)</div></div>
+                <div class="perf-card"><div class="perf-val">±{format_inr(312.45 * usd_inr_rate)} ($312.45)</div><div class="perf-label">Mean Absolute Error (MAE)</div></div>
             </div>
-            """, unsafe_allow_html=True)
+            <table class="perf-table">
+                <thead><tr><th>Epoch Date</th><th>Actual Price</th><th>Hybrid Forecast</th><th>Variance</th></tr></thead>
+                <tbody>{backtest_rows}</tbody>
+            </table>
+        </div>
+        """, unsafe_allow_html=True)
 
-        # --- TAB: COMPETE ---
-        elif tab_param == "Compete":
-            st.markdown("<div style='padding:40px 32px;'><h2 style='color:#f5a623;'>AI LEADERBOARD</h2><p style='color:#8a849b;'>Voltrex Hybrid Architecture vs baseline models.</p></div>", unsafe_allow_html=True)
-            comp_df = pd.DataFrame({
-                "Architecture": ["Voltrex Hybrid (LSTM+XGB)", "Standard LSTM", "Vanilla XGBoost", "Linear Regression"],
-                "Directional Accuracy": ["94.2%", "88.4%", "86.1%", "64.0%"],
-                "MAE (USD)": [
-                    f"{format_inr(312.45 * usd_inr_rate)} ($312.45)", 
-                    f"{format_inr(580.12 * usd_inr_rate)} ($580.12)", 
-                    f"{format_inr(640.20 * usd_inr_rate)} ($640.20)", 
-                    f"{format_inr(1210.00 * usd_inr_rate)} ($1,210.00)"
-                ],
-                "Rank": ["🏆 1st", "2nd", "3rd", "4th"]
-            })
-            st.table(comp_df)
+    # --- TAB: COMPETE ---
+    elif tab_param == "Compete":
+        st.markdown("<div style='padding:40px 32px;'><h2 style='color:#f5a623;'>AI LEADERBOARD</h2><p style='color:#8a849b;'>Voltrex Hybrid Architecture vs baseline models.</p></div>", unsafe_allow_html=True)
+        comp_df = pd.DataFrame({
+            "Architecture": ["Voltrex Hybrid (LSTM+XGB)", "Standard LSTM", "Vanilla XGBoost", "Linear Regression"],
+            "Directional Accuracy": ["94.2%", "88.4%", "86.1%", "64.0%"],
+            "MAE (USD)": [
+                f"{format_inr(312.45 * usd_inr_rate)} ($312.45)", 
+                f"{format_inr(580.12 * usd_inr_rate)} ($580.12)", 
+                f"{format_inr(640.20 * usd_inr_rate)} ($640.20)", 
+                f"{format_inr(1210.00 * usd_inr_rate)} ($1,210.00)"
+            ],
+            "Rank": ["🏆 1st", "2nd", "3rd", "4th"]
+        })
+        st.table(comp_df)
 
-        # --- TAB: ACTIVITY ---
-        elif tab_param == "Activity":
-            st.markdown("<div style='padding:40px 32px;'><h2 style='color:#f5a623;'>REAL-TIME ACTIVITY LOGS</h2></div>", unsafe_allow_html=True)
-            current_time = datetime.now().strftime('%H:%M:%S')
-            logs = [
-                f"[{current_time}] PING: Connection to Binance API established.",
-                f"[{current_time}] PING: Connection to CryptoPanic API established.",
-                f"[{current_time}] PULL: Synchronizing last 30 daily candles for BTC/USDT.",
-                f"[{current_time}] CORE: Running Hybrid Inference Engine...",
-                f"[{current_time}] SUCCESS: Calculation complete. Confidence level 94.2%."
-            ]
-            for log in logs: st.code(log)
+    # --- TAB: ACTIVITY ---
+    elif tab_param == "Activity":
+        st.markdown("<div style='padding:40px 32px;'><h2 style='color:#f5a623;'>REAL-TIME ACTIVITY LOGS</h2></div>", unsafe_allow_html=True)
+        current_time = datetime.now().strftime('%H:%M:%S')
+        logs = [
+            f"[{current_time}] PING: Connection to Binance API established.",
+            f"[{current_time}] PING: Connection to CryptoPanic API established.",
+            f"[{current_time}] PULL: Synchronizing last 30 daily candles for BTC/USDT.",
+            f"[{current_time}] CORE: Running Hybrid Inference Engine...",
+            f"[{current_time}] SUCCESS: Calculation complete. Confidence level 94.2%."
+        ]
+        for log in logs: st.code(log)
 
-        # --- TAB: ABOUT ---
-        elif tab_param == "About":
-            st.markdown("""
-            <div style="padding:40px 32px;">
-            <h2 style="color:#f5a623; margin-bottom: 20px; font-weight: 800; letter-spacing: 1px;">VOLTREX QUANTITATIVE TERMINAL</h2>
-            <div class="about-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
-            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 25px; border-radius: 12px; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), border-color 0.3s ease, box-shadow 0.3s ease;">
-            <h4 style="color: #00ff9d; margin-bottom: 15px; font-size: 0.9rem; letter-spacing: 1px; border-bottom: 1px solid rgba(0,255,157,0.2); padding-bottom: 8px;">ACADEMIC RESEARCH & TEAM</h4>
-            <p style="color: #8a849b; font-size: 0.85rem; line-height: 1.8;">
-            <strong style="color: #fff;">Team Members:</strong><br>
-            Snehashree Dutta, Shreyojit Das, Ushashee Das, Sirup Saha, Sneha Sarkar, Arindrajit Sadhukhan<br><br>
-            <strong style="color: #fff;">Research Guidance:</strong><br>
-            Prof. Ankita Mandal<br><br>
-            <strong style="color: #fff;">Institute:</strong><br>
-            Institute of Engineering & Management (IEM)<br><br>
-            <strong style="color: #fff;">University:</strong><br>
-            University of Engineering & Management (UEM)
-            </p>
-            </div>
-            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 25px; border-radius: 12px; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), border-color 0.3s ease, box-shadow 0.3s ease;">
-            <h4 style="color: #00ff9d; margin-bottom: 15px; font-size: 0.9rem; letter-spacing: 1px; border-bottom: 1px solid rgba(0,255,157,0.2); padding-bottom: 8px;">SYSTEM ARCHITECTURE & STACK</h4>
-            <p style="color: #8a849b; font-size: 0.85rem; line-height: 1.8;">
-            <strong style="color: #fff;">Core Languages:</strong> Python 3.11, HTML5, CSS3<br>
-            <strong style="color: #fff;">Frontend Framework:</strong> Streamlit<br>
-            <strong style="color: #fff;">Machine Learning (Hybrid):</strong> TensorFlow (Keras), Long Short-Term Memory (LSTM), XGBoost Regressor, Scikit-Learn<br>
-            <strong style="color: #fff;">NLP Engine:</strong> HuggingFace Transformers (FinBERT)<br>
-            <strong style="color: #fff;">Data Pipelines:</strong> Binance REST API, CryptoPanic API, CryptoNews RSS<br>
-            <strong style="color: #fff;">Visualization:</strong> Plotly Graph Objects
-            </p>
-            </div>
-            </div>
-            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 25px; border-radius: 12px; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), border-color 0.3s ease, box-shadow 0.3s ease;">
-            <h4 style="color: #00ff9d; margin-bottom: 15px; font-size: 0.9rem; letter-spacing: 1px; border-bottom: 1px solid rgba(0,255,157,0.2); padding-bottom: 8px;">PROJECT DESCRIPTION</h4>
-            <p style="color: #d1d5db; font-size: 0.9rem; line-height: 1.8;">
-            Voltrex is an advanced quantitative trading terminal designed to forecast cryptocurrency asset trajectories (specifically BTC/USDT) using a proprietary <strong>Hybrid Engine</strong>. By fusing deep learning (LSTM) for sequential time-series pattern recognition with gradient boosting (XGBoost) for robust feature extraction, the system achieves high-precision predictive modeling.<br><br>
-            This mathematical framework is further augmented by a real-time Natural Language Processing (NLP) node utilizing FinBERT to scrape and analyze global market sentiment from social and institutional news sources. The terminal provides a unified, institutional-grade dashboard for predictive analytics, backtesting validation, and real-time market tracking.
-            </p>
-            </div>
-            </div>
-            """, unsafe_allow_html=True)
+    # --- TAB: ABOUT ---
+    elif tab_param == "About":
+        st.markdown("""
+        <div style="padding:40px 32px;">
+        <h2 style="color:#f5a623; margin-bottom: 20px; font-weight: 800; letter-spacing: 1px;">VOLTREX QUANTITATIVE TERMINAL</h2>
+        <div class="about-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 25px; border-radius: 12px; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), border-color 0.3s ease, box-shadow 0.3s ease;">
+        <h4 style="color: #00ff9d; margin-bottom: 15px; font-size: 0.9rem; letter-spacing: 1px; border-bottom: 1px solid rgba(0,255,157,0.2); padding-bottom: 8px;">ACADEMIC RESEARCH & TEAM</h4>
+        <p style="color: #8a849b; font-size: 0.85rem; line-height: 1.8;">
+        <strong style="color: #fff;">Team Members:</strong><br>
+        Snehashree Dutta, Shreyojit Das, Ushashee Das, Sirup Saha, Sneha Sarkar, Arindrajit Sadhukhan<br><br>
+        <strong style="color: #fff;">Research Guidance:</strong><br>
+        Prof. Ankita Mandal<br><br>
+        <strong style="color: #fff;">Institute:</strong><br>
+        Institute of Engineering & Management (IEM)<br><br>
+        <strong style="color: #fff;">University:</strong><br>
+        University of Engineering & Management (UEM)
+        </p>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 25px; border-radius: 12px; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), border-color 0.3s ease, box-shadow 0.3s ease;">
+        <h4 style="color: #00ff9d; margin-bottom: 15px; font-size: 0.9rem; letter-spacing: 1px; border-bottom: 1px solid rgba(0,255,157,0.2); padding-bottom: 8px;">SYSTEM ARCHITECTURE & STACK</h4>
+        <p style="color: #8a849b; font-size: 0.85rem; line-height: 1.8;">
+        <strong style="color: #fff;">Core Languages:</strong> Python 3.11, HTML5, CSS3<br>
+        <strong style="color: #fff;">Frontend Framework:</strong> Streamlit<br>
+        <strong style="color: #fff;">Machine Learning (Hybrid):</strong> TensorFlow (Keras), Long Short-Term Memory (LSTM), XGBoost Regressor, Scikit-Learn<br>
+        <strong style="color: #fff;">NLP Engine:</strong> HuggingFace Transformers (FinBERT)<br>
+        <strong style="color: #fff;">Data Pipelines:</strong> Binance REST API, CryptoPanic API, CryptoNews RSS<br>
+        <strong style="color: #fff;">Visualization:</strong> Plotly Graph Objects
+        </p>
+        </div>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 25px; border-radius: 12px; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), border-color 0.3s ease, box-shadow 0.3s ease;">
+        <h4 style="color: #00ff9d; margin-bottom: 15px; font-size: 0.9rem; letter-spacing: 1px; border-bottom: 1px solid rgba(0,255,157,0.2); padding-bottom: 8px;">PROJECT DESCRIPTION</h4>
+        <p style="color: #d1d5db; font-size: 0.9rem; line-height: 1.8;">
+        Voltrex is an advanced quantitative trading terminal designed to forecast cryptocurrency asset trajectories (specifically BTC/USDT) using a proprietary <strong>Hybrid Engine</strong>. By fusing deep learning (LSTM) for sequential time-series pattern recognition with gradient boosting (XGBoost) for robust feature extraction, the system achieves high-precision predictive modeling.<br><br>
+        This mathematical framework is further augmented by a real-time Natural Language Processing (NLP) node utilizing FinBERT to scrape and analyze global market sentiment from social and institutional news sources. The terminal provides a unified, institutional-grade dashboard for predictive analytics, backtesting validation, and real-time market tracking.
+        </p>
+        </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 with col_side:
     directive = "STRONG BUY" if (diff_pct > 0 and macro_score > 0) else "LIQUIDATE"
@@ -1154,6 +1334,3 @@ with col_side:
     </div>
     </div></div>
     """, unsafe_allow_html=True)
-
-time.sleep(2)
-st.rerun()
