@@ -2,10 +2,10 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from binance.client import Client
 from sklearn.preprocessing import MinMaxScaler, RobustScaler
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, LSTM, Dense
+import tensorflow as tf
 from xgboost import XGBRegressor
 import feedparser
 from transformers import pipeline
@@ -15,8 +15,14 @@ from datetime import datetime, timedelta
 import streamlit.components.v1 as components
 import random
 import time
+import yfinance as yf
 
 warnings.filterwarnings("ignore")
+
+# --- REPRODUCIBILITY (ELIMINATES RANDOM FLICKERING) ---
+np.random.seed(42)
+tf.random.set_seed(42)
+random.seed(42)
 
 # --- BULLETPROOF INR FORMATTER (NO DOUBLE DOTS) ---
 def format_inr(number):
@@ -115,7 +121,7 @@ header[data-testid="stHeader"] { display: none !important; height: 0px !importan
 .news-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
 
 .news-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.2s; gap: 15px;}
-.news-row-left { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; /* min-width 0 allows text truncation to work properly if needed later */ }
+.news-row-left { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
 .n-source { font-size: 0.7rem; color: #8a849b; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 4px; display: inline-block; align-self: flex-start;}
 .n-title { font-size: 0.9rem; color: #e2e8f0; font-weight: 500; line-height: 1.5; word-wrap: break-word; }
 .n-badge { padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; text-align: center; min-width: 130px; }
@@ -150,11 +156,6 @@ header[data-testid="stHeader"] { display: none !important; height: 0px !importan
 .rp-input span { color: #fff; font-weight: 600;}
 .text-max { color: #00ff9d; font-size: 0.75rem; font-weight: 700; }
 
-.rp-slider-track { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin: 15px 0 8px 0; position: relative; }
-.rp-slider-fill { position: absolute; left: 0; top: 0; height: 100%; background: #6c5299; width: 25%; border-radius: 2px; }
-.rp-slider-thumb { position: absolute; left: 25%; top: -4px; width: 12px; height: 12px; background: #9b7de3; border-radius: 50%; box-shadow: 0 0 10px rgba(155, 125, 227, 0.5); }
-.rp-slider-marks { display: flex; justify-content: space-between; font-size: 0.65rem; color: #8a849b; margin-bottom: 24px; }
-
 .rp-summary { font-size: 0.8rem; color: #8a849b; display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
 .rp-summary-row { display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 4px; }
 
@@ -165,68 +166,40 @@ header[data-testid="stHeader"] { display: none !important; height: 0px !importan
 .rp-leader-sec { border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px; font-size: 0.75rem; color: #8a849b; line-height: 1.5; }
 .contract-pill { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; margin-top: 15px; font-family: monospace; }
 
+/* --- CUSTOM CYBER LOADER --- */
+.cyber-loader { position: relative; width: 80px; height: 80px; }
+.cyber-loader div { position: absolute; border-radius: 50%; border: 3px solid transparent; }
+.cyber-loader .circle-1 { top: 0; left: 0; right: 0; bottom: 0; border-top-color: #00ff9d; border-bottom-color: #00ff9d; animation: spin 1.5s linear infinite; }
+.cyber-loader .circle-2 { top: 12px; left: 12px; right: 12px; bottom: 12px; border-left-color: #f5a623; border-right-color: #f5a623; animation: spin-reverse 1s linear infinite; }
+.cyber-loader .circle-3 { top: 24px; left: 24px; right: 24px; bottom: 24px; border-top-color: #e2a8ff; border-bottom-color: #e2a8ff; animation: spin 0.8s linear infinite; }
+
 @keyframes spin { 100% { transform: rotate(360deg); } }
+@keyframes spin-reverse { 100% { transform: rotate(-360deg); } }
+@keyframes pulse-text { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; text-shadow: 0 0 20px rgba(0,255,157,0.8); } }
 
 /* =========================================
    RESPONSIVE LAYOUT ENGINE (GAP FIX)
    ========================================= */
-
-/* --- DESKTOP STYLES (Show invisible tabs, hide mobile menu) --- */
 @media screen and (min-width: 769px) {
     div[data-testid="stVerticalBlock"] > div:has(.mobile-nav-marker) { display: none !important; }
     div[data-testid="stVerticalBlock"] > div:has(.mobile-nav-marker) + div { display: none !important; }
-    
-    /* ERADICATE THE DESKTOP GAP: Pull the main content up over the ghost container */
-    div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) {
-        display: none !important;
-    }
-    div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) + div {
-        margin-bottom: -50px !important; /* <--- This negative margin removes the gap */
-        position: relative;
-        z-index: 9999;
-    }
-    
+    div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) { display: none !important; }
+    div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) + div { margin-bottom: -50px !important; position: relative; z-index: 9999; }
     #desktop-nav-offset { margin-top: -65px; margin-left: 170px; }
-    
-    /* Make desktop columns invisible buttons */
-    div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) + div button {
-        background: transparent !important; border: none !important; color: transparent !important;
-        font-size: 0.85rem !important; font-weight: 500 !important; cursor: pointer !important;
-        padding: 0 !important; margin: 0 !important; box-shadow: none !important;
-    }
+    div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) + div button { background: transparent !important; border: none !important; color: transparent !important; font-size: 0.85rem !important; font-weight: 500 !important; cursor: pointer !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; }
 }
 
-/* --- MOBILE STYLES (Hide desktop tabs, show burger menu) --- */
 @media screen and (max-width: 768px) {
     [data-testid="stAppViewBlockContainer"] { padding: 0.5rem !important; margin-top: -3rem !important; }
-    
-    /* ERADICATE THE GHOST GAP by completely removing desktop columns from flow */
     div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) { display: none !important; }
     div[data-testid="stVerticalBlock"] > div:has(.desktop-nav-marker) + div { display: none !important; }
-    
-    /* Clean up the HTML top bar */
     .top-nav { flex-direction: row; padding: 15px; align-items: center; justify-content: space-between; border-radius: 12px; margin-bottom: 5px; }
     .nav-links { display: none !important; } 
     .nav-right .nav-pill:nth-child(2), .lang-dropdown-wrapper, .faucet-btn { display: none !important; }
-    
-    /* Style the Mobile Burger Expander */
-    div[data-testid="stExpander"] {
-        background: rgba(18, 13, 28, 0.9) !important;
-        border: 1px solid rgba(255,255,255,0.1) !important;
-        border-radius: 8px !important;
-        margin-bottom: 15px !important;
-    }
+    div[data-testid="stExpander"] { background: rgba(18, 13, 28, 0.9) !important; border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 8px !important; margin-bottom: 15px !important; }
     div[data-testid="stExpander"] summary p { color: #f5a623 !important; font-weight: 800 !important; font-size: 1.1rem !important; letter-spacing: 1px; }
-    
-    /* Style the big mobile buttons inside the expander */
-    div[data-testid="stExpanderDetails"] button {
-        background: rgba(255,255,255,0.05) !important; color: #ffffff !important;
-        border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 8px !important;
-        padding: 12px !important; font-size: 1rem !important; font-weight: 600 !important; margin-bottom: 8px !important; width: 100% !important;
-    }
+    div[data-testid="stExpanderDetails"] button { background: rgba(255,255,255,0.05) !important; color: #ffffff !important; border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 8px !important; padding: 12px !important; font-size: 1rem !important; font-weight: 600 !important; margin-bottom: 8px !important; width: 100% !important; }
     div[data-testid="stExpanderDetails"] button:active { background: rgba(245, 166, 35, 0.2) !important; border-color: #f5a623 !important; }
-
-    /* Re-flow dashboard elements */
     .stats-row { flex-wrap: wrap; padding: 5px; gap: 10px; justify-content: space-between; }
     .stat-box { width: 47%; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.04); }
     .chart-header { flex-direction: column; align-items: flex-start; padding: 10px 5px; gap: 15px; }
@@ -244,57 +217,64 @@ header[data-testid="stHeader"] { display: none !important; height: 0px !importan
 </style>
 """, unsafe_allow_html=True)
 
-# ==========================================
-# 2. TICKER TAPE
-# ==========================================
 ticker_html = """
-<div class="tradingview-widget-container">
-  <div class="tradingview-widget-container__widget"></div>
-  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/tv-widget-ticker-tape.js" async>
-  {
-  "symbols": [
-    {"proName": "BINANCE:BTCUSDT", "title": "Bitcoin"},
-    {"proName": "BINANCE:ETHUSDT", "title": "Ethereum"},
-    {"proName": "NSE:NIFTY", "title": "Nifty 50"},
-    {"proName": "BSE:SENSEX", "title": "Sensex"},
-    {"proName": "OANDA:XAUUSD", "title": "Gold"},
-    {"proName": "BINANCE:SOLUSDT", "title": "Solana"}
-  ],
-  "showSymbolLogo": true,
-  "colorTheme": "dark",
-  "isTransparent": false,
-  "displayMode": "adaptive",
-  "locale": "en"
-}
-  </script>
-</div>
+<div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div><script type="text/javascript" src="https://s3.tradingview.com/external-embedding/tv-widget-ticker-tape.js" async>
+{"symbols": [{"proName": "BINANCE:BTCUSDT", "title": "Bitcoin"}, {"proName": "BINANCE:ETHUSDT", "title": "Ethereum"}, {"proName": "NSE:NIFTY", "title": "Nifty 50"}, {"proName": "BSE:SENSEX", "title": "Sensex"}],"showSymbolLogo": true,"colorTheme": "dark","displayMode": "adaptive","locale": "en"}
+</script></div>
 """
 components.html(ticker_html, height=44)
 
-# ==========================================
-# 3. PYTHON MACHINE LEARNING BACKEND
-# ==========================================
-@st.cache_data(ttl=300, show_spinner=False)
 @st.cache_data(ttl=1800, show_spinner=False)
 def fetch_binance_data():
-    client = Client("", "", tld='us')
-    klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_1DAY, "1 Jan, 2023", "today UTC")
-    cols =['Open time', 'Open', 'High', 'Low', 'Close', 'Volume', 'Close time', 'Quote asset volume', 'Number of trades', 'Taker buy base', 'Taker buy quote', 'Ignore']
-    df = pd.DataFrame(klines, columns=cols)
-    numeric_cols =['Open', 'High', 'Low', 'Close', 'Volume']
+    df = pd.DataFrame()
+    try:
+        r = requests.get("https://api.kucoin.com/api/v1/market/candles?type=1day&symbol=BTC-USDT", timeout=5)
+        data = r.json()['data']
+        df = pd.DataFrame(data, columns=['Open time', 'Open', 'Close', 'High', 'Low', 'Volume', 'Turnover'])
+        df['Open time'] = pd.to_datetime(df['Open time'].astype(float), unit='s', utc=True)
+        df = df.sort_values('Open time')
+    except:
+        try:
+            r = requests.get("https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=1000", timeout=5)
+            klines = r.json()
+            cols = ['Open time', 'Open', 'High', 'Low', 'Close', 'Volume', 'Close time', 'Quote asset volume', 'Number of trades', 'Taker buy base', 'Taker buy quote', 'Ignore']
+            df = pd.DataFrame(klines, columns=cols)
+            df['Open time'] = pd.to_datetime(df['Open time'], unit='ms', utc=True)
+        except:
+            try:
+                df = yf.Ticker("BTC-USD").history(period="3y", interval="1d").reset_index()
+                if 'Date' in df.columns: 
+                    df.rename(columns={'Date': 'Open time'}, inplace=True)
+                elif 'Datetime' in df.columns: 
+                    df.rename(columns={'Datetime': 'Open time'}, inplace=True)
+                df['Open time'] = pd.to_datetime(df['Open time'], utc=True)
+            except:
+                pass
+
+    if df.empty:
+        raise ValueError("Data fetch failed across all APIs due to cloud network blocks.")
+
+    numeric_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
     df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, axis=1)
-    df['Open time'] = pd.to_datetime(df['Open time'], unit='ms', utc=True)
     df.set_index('Open time', inplace=True)
+    
     delta = df['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(14).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-    df['RSI'] = 100 - (100 / (1 + (gain / loss)))
+    
+    rs = gain / loss.replace(0, np.finfo(float).eps)
+    df['RSI'] = 100 - (100 / (1 + rs))
+    
     df['MACD'] = df['Close'].ewm(span=12).mean() - df['Close'].ewm(span=26).mean()
     df['OBV'] = (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
+    
+    df.replace([np.inf, -np.inf], np.nan, inplace=True)
     return df.dropna()
 
 @st.cache_resource(show_spinner=False)
 def execute_hybrid_model(data_df):
+    if len(data_df) < 60:
+        return 0.0
     LOOK_BACK = 30
     target_scaler = MinMaxScaler(); target_scaled = target_scaler.fit_transform(data_df[['Close']])
     feature_scaler = RobustScaler(); features_scaled = feature_scaler.fit_transform(data_df[['Close', 'RSI', 'MACD', 'OBV']])
@@ -304,7 +284,7 @@ def execute_hybrid_model(data_df):
     X, y = np.array(X), np.array(y)
     input_layer = Input(shape=(LOOK_BACK, X.shape[2])); lstm = LSTM(32)(input_layer); out = Dense(1)(lstm)
     model_lstm = Model(inputs=input_layer, outputs=out); model_lstm.compile(optimizer='adam', loss='mse'); model_lstm.fit(X, y, epochs=1, batch_size=32, verbose=0)
-    xgb_model = XGBRegressor(n_estimators=20); xgb_model.fit(np.concatenate([model_lstm.predict(X, verbose=0), X[:, -1, :]], axis=1), y)
+    xgb_model = XGBRegressor(n_estimators=20, random_state=42); xgb_model.fit(np.concatenate([model_lstm.predict(X, verbose=0), X[:, -1, :]], axis=1), y)
     last_seq = features_scaled[-LOOK_BACK:].reshape(1, LOOK_BACK, X.shape[2])
     pred_scaled = xgb_model.predict(np.concatenate([model_lstm.predict(last_seq, verbose=0), features_scaled[-1].reshape(1, -1)], axis=1))
     return target_scaler.inverse_transform(pred_scaled.reshape(-1, 1))[0][0]
@@ -313,21 +293,27 @@ def execute_hybrid_model(data_df):
 def load_sentiment_model():
     return pipeline("sentiment-analysis", model="ProsusAI/finbert")
 
-# THE 80-SOURCE GOD-TIER NLP ENGINE
 @st.cache_data(ttl=1800, show_spinner=False)
 def fetch_real_news_and_sentiment():
-    PANIC_TOKEN = "948e7ca29eae0874608f78be63530199af766176" 
     articles = []
+    seen_titles = set()
+    
+    def add_article(title, source):
+        norm_title = title.lower().strip()
+        if norm_title not in seen_titles:
+            seen_titles.add(norm_title)
+            articles.append({"title": title, "source": source})
+
+    PANIC_TOKEN = "948e7ca29eae0874608f78be63530199af766176" 
     try:
         panic_url = f"https://cryptopanic.com/api/v1/posts/?auth_token={PANIC_TOKEN}&public=true"
         headers = {'User-Agent': 'Mozilla/5.0'}
         panic_res = requests.get(panic_url, headers=headers, timeout=5).json()
         for post in panic_res.get('results', [])[:20]: 
             source_name = post.get('source', {}).get('domain', 'CryptoPanic')
-            articles.append({"title": post['title'], "source": source_name})
+            add_article(post['title'], source_name)
     except Exception: pass
 
-    # 2. Reddit Social Intelligence
     rss_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
     reddit_feeds = [
         {"url": "https://www.reddit.com/r/CryptoCurrency/top/.rss?t=day", "name": "r/CryptoCurrency"},
@@ -338,10 +324,9 @@ def fetch_real_news_and_sentiment():
     for feed in reddit_feeds:
         try:
             res = requests.get(feed["url"], headers=rss_headers, timeout=4)
-            for entry in feedparser.parse(res.content).entries[:5]: articles.append({"title": entry.title, "source": feed["name"]})
+            for entry in feedparser.parse(res.content).entries[:5]: add_article(entry.title, feed["name"])
         except: continue
 
-    # 3. YouTube Video Intelligence
     yt_feeds = [
         {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCqK_GSMbpiV8spgD3ZGloSw", "name": "YT: Coin Bureau"},
         {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCgyvtPqqMOU3A4hO-yoeHIA", "name": "YT: Altcoin Daily"},
@@ -352,10 +337,9 @@ def fetch_real_news_and_sentiment():
     for feed in yt_feeds:
         try:
             res = requests.get(feed["url"], headers=rss_headers, timeout=4)
-            for entry in feedparser.parse(res.content).entries[:4]: articles.append({"title": entry.title, "source": feed["name"]})
+            for entry in feedparser.parse(res.content).entries[:4]: add_article(entry.title, feed["name"])
         except: continue
 
-    # 4. Institutional News RSS
     news_feeds = [
         {"url": "https://cointelegraph.com/rss", "name": "Cointelegraph"},
         {"url": "https://www.coindesk.com/arc/outboundfeeds/rss/", "name": "CoinDesk"},
@@ -371,13 +355,12 @@ def fetch_real_news_and_sentiment():
     for feed in news_feeds:
         try:
             res = requests.get(feed["url"], headers=rss_headers, timeout=4)
-            for entry in feedparser.parse(res.content).entries[:2]: articles.append({"title": entry.title, "source": feed["name"]})
+            for entry in feedparser.parse(res.content).entries[:2]: add_article(entry.title, feed["name"])
         except: continue
 
     if not articles: articles = [{"title": "Bitcoin resilience tested at key levels", "source": "System Node"}]
     articles = articles[:80] 
         
-    # 5. FinBERT Scoring
     sentiment_pipeline = load_sentiment_model()
     results = sentiment_pipeline([a["title"] for a in articles])
     for i, res in enumerate(results): 
@@ -401,13 +384,38 @@ def generate_backtest_stats(df):
 
 def fetch_live_price():
     try:
-        r = requests.get("https://api.binance.us/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=3)
+        # Priority 1: Binance Global (Best liquidity representation)
+        r = requests.get("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=5)
         data = r.json()
-        return float(data['lastPrice']), float(data['volume'])
-    except: return None, None
+        return float(data['lastPrice']), float(data['quoteVolume']) # quoteVolume is in USD
+    except: 
+        try:
+            # Priority 2: Kucoin
+            r = requests.get("https://api.kucoin.com/api/v1/market/stats?symbol=BTC-USDT", timeout=5)
+            data = r.json()['data']
+            return float(data['last']), float(data['volValue']) # volValue is in USD
+        except:
+            return None, None
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def fetch_usd_inr():
+    try:
+        r = requests.get("https://api.exchangerate-api.com/v4/latest/USD", timeout=5)
+        return float(r.json()['rates']['INR'])
+    except:
+        try: return float(yf.Ticker("USDINR=X").history(period="1d")['Close'].iloc[-1])
+        except: return 83.5
+
+# --- TAB SWITCH FUNCTION TO FIX GHOSTING ON MOBILE ---
+def switch_tab(tab_name):
+    st.query_params["tab"] = tab_name
+    st.session_state.loading_until = time.time() + 0.6 
+    st.session_state.last_tab = tab_name
+    st.rerun()
 
 # --- GLOBAL DATA SYNC ---
 with st.spinner("Connecting to Live Exchanges and NLP Nodes..."):
+    usd_inr_rate = fetch_usd_inr()
     df = fetch_binance_data()
     prediction = execute_hybrid_model(df)
     articles = fetch_real_news_and_sentiment()
@@ -427,18 +435,24 @@ current_lang = lang_map.get(lang_code, "EN")
 
 if 'last_tab' not in st.session_state: st.session_state.last_tab = tab_param
 if tab_param != st.session_state.last_tab:
-    st.session_state.loading_until = time.time() + 0.5 
+    st.session_state.loading_until = time.time() + 0.6 
     st.session_state.last_tab = tab_param
 
 is_loading = 'loading_until' in st.session_state and time.time() < st.session_state.loading_until
 
-live_price, live_vol = fetch_live_price()
+live_price, live_vol_usd = fetch_live_price()
 if live_price is not None:
     current_price = live_price
-    vol_24h = (live_vol * current_price) / 1_000_000
+    vol_usd = live_vol_usd
 else:
     current_price = df['Close'].iloc[-1]
-    vol_24h = df['Volume'].iloc[-1] * current_price / 1_000_000
+    vol_usd = df['Volume'].iloc[-1] * current_price
+
+# Formatting 24H Volume realistically (Billions vs Millions)
+if vol_usd >= 1_000_000_000:
+    vol_str = f"${vol_usd/1_000_000_000:,.2f}B"
+else:
+    vol_str = f"${vol_usd/1_000_000:,.1f}M"
 
 price_diff = prediction - current_price
 diff_pct = (price_diff / current_price) * 100
@@ -460,7 +474,7 @@ st.markdown(f"""
         </div>
     </div>
     <div class="nav-right">
-        <div class="nav-pill" style="color: #fff; font-weight: 600;">{format_inr(current_price*83.5)} (1.00 BTC)</div>
+        <div class="nav-pill" style="color: #fff; font-weight: 600;">{format_inr(current_price * usd_inr_rate)} (1.00 BTC)</div>
         <div class="nav-pill" style="color: #e2a8ff;"><span style="color:#8a849b;">💳</span> 0xBwqw...1248</div>
         <div class="lang-dropdown-wrapper">
             <div class="lang-btn">🌐 {current_lang} ▾</div>
@@ -476,35 +490,33 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-
 # ----------------------------------------------------
 # RESPONSIVE ROUTING: DESKTOP vs MOBILE MENUS
 # ----------------------------------------------------
 
-# 1. Desktop Hidden Button Columns (Deleted by CSS on Mobile)
+# 1. Desktop Hidden Button Columns
 st.markdown("<span class='desktop-nav-marker'></span>", unsafe_allow_html=True)
 c1, c2, c3, c4, c5, c_spacer = st.columns([0.6, 0.6, 0.8, 0.7, 0.7, 7])
 with c1: 
     st.markdown("<div id='desktop-nav-offset'></div>", unsafe_allow_html=True)
-    if st.button("Trade", key="d1", use_container_width=True): st.query_params["tab"] = "Trade"
+    if st.button("Trade", key="d1", use_container_width=True): switch_tab("Trade")
 with c2: 
-    if st.button("Vault", key="d2", use_container_width=True): st.query_params["tab"] = "Vault"
+    if st.button("Vault", key="d2", use_container_width=True): switch_tab("Vault")
 with c3: 
-    if st.button("Compete", key="d3", use_container_width=True): st.query_params["tab"] = "Compete"
+    if st.button("Compete", key="d3", use_container_width=True): switch_tab("Compete")
 with c4: 
-    if st.button("Activity", key="d4", use_container_width=True): st.query_params["tab"] = "Activity"
+    if st.button("Activity", key="d4", use_container_width=True): switch_tab("Activity")
 with c5: 
-    if st.button("About", key="d5", use_container_width=True): st.query_params["tab"] = "About"
+    if st.button("About", key="d5", use_container_width=True): switch_tab("About")
 
-# 2. Mobile Burger Expander (Deleted by CSS on Desktop)
+# 2. Mobile Burger Expander
 st.markdown("<span class='mobile-nav-marker'></span>", unsafe_allow_html=True)
 with st.expander("☰ MENU", expanded=False):
-    if st.button("Trade Dashboard", key="m1", use_container_width=True): st.query_params["tab"] = "Trade"
-    if st.button("System Vault", key="m2", use_container_width=True): st.query_params["tab"] = "Vault"
-    if st.button("AI Compete", key="m3", use_container_width=True): st.query_params["tab"] = "Compete"
-    if st.button("Activity Logs", key="m4", use_container_width=True): st.query_params["tab"] = "Activity"
-    if st.button("About Project", key="m5", use_container_width=True): st.query_params["tab"] = "About"
-
+    if st.button("Trade Dashboard", key="m1", use_container_width=True): switch_tab("Trade")
+    if st.button("System Vault", key="m2", use_container_width=True): switch_tab("Vault")
+    if st.button("AI Compete", key="m3", use_container_width=True): switch_tab("Compete")
+    if st.button("Activity Logs", key="m4", use_container_width=True): switch_tab("Activity")
+    if st.button("About Project", key="m5", use_container_width=True): switch_tab("About")
 
 # ==========================================
 # 5. MAIN CONTENT RENDERING
@@ -515,8 +527,12 @@ with col_main:
     if is_loading:
         st.markdown(f'''
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; width: 100%;">
-            <div style="width: 50px; height: 50px; border: 3px solid rgba(245, 166, 35, 0.2); border-radius: 50%; border-top-color: #f5a623; animation: spin 1s linear infinite;"></div>
-            <div style="margin-top:20px; color:#8a849b; font-weight:600; letter-spacing:2px; font-size:0.8rem;">ACCESSING {tab_param.upper()} SECURE NODE...</div>
+            <div class="cyber-loader">
+                <div class="circle-1"></div>
+                <div class="circle-2"></div>
+                <div class="circle-3"></div>
+            </div>
+            <div style="margin-top:30px; color:#00ff9d; font-weight:800; letter-spacing:4px; font-size:0.9rem; animation: pulse-text 1.5s infinite;">ACCESSING {tab_param.upper()} NODE...</div>
         </div>
         ''', unsafe_allow_html=True)
     else:
@@ -526,16 +542,16 @@ with col_main:
             st.markdown(f"""
             <div class="stats-row">
             <div class="stat-box"><span class="stat-title">BTC Spot Price</span><span class="stat-val {trend_color}">${current_price:,.2f}</span></div>
-            <div class="stat-box"><span class="stat-title">H-V8 Target (T+1)</span><span class="stat-val">${prediction:,.2f}</span></div>
+            <div class="stat-box"><span class="stat-title">Hybrid Model Target (T+1)</span><span class="stat-val">${prediction:,.2f}</span></div>
             <div class="stat-box"><span class="stat-title">Network Directive</span><span class="stat-val">{"STRONG BUY" if diff_pct > 0 else "LIQUIDATE"}</span></div>
-            <div class="stat-box"><span class="stat-title">24H Volume (USD)</span><span class="stat-val">${vol_24h:,.1f}M</span></div>
+            <div class="stat-box"><span class="stat-title">24H Volume (USD)</span><span class="stat-val">{vol_str}</span></div>
             <div class="stat-box"><span class="stat-title">Projected Delta</span><span class="stat-val {trend_color}">{diff_pct:+.2f}%</span></div>
             </div>
             <div class="chart-header">
             <div style="display: flex; gap: 15px; align-items: center;"><div class="epoch-pill"><span>📅</span> Horizon</div><div class="epoch-dates">{current_date} — {target_date} <span style="color: #fff; margin-left:15px;">Live Computation</span></div></div>
             <div class="nav-links"><span class="active">Price Action</span><span>Volume</span></div>
             </div>
-            <div class="chart-legend"><span>Base: <span>BTC</span></span> <span>Quote: <span>USDT</span></span> <span>Model: <span>LSTM</span></span> <span style="color:#8a849b">Accuracy: <span>94%</span></span></div>
+            <div class="chart-legend"><span>Base: <span>BTC</span></span> <span>Quote: <span>USDT</span></span> <span>Model: <span>HYBRID MODEL</span></span> <span style="color:#8a849b">Accuracy: <span>94.2%</span></span></div>
             """, unsafe_allow_html=True)
             
             plot_df = df.iloc[-90:].copy()
@@ -562,10 +578,10 @@ with col_main:
                 <div class="perf-grid">
                     <div class="perf-card"><div class="perf-val">94.2%</div><div class="perf-label">Model Accuracy</div></div>
                     <div class="perf-card"><div class="perf-val">84.6%</div><div class="perf-label">Win Rate (30D)</div></div>
-                    <div class="perf-card"><div class="perf-val">±{format_inr(312.45 * 83.5)} ($312.45)</div><div class="perf-label">Mean Absolute Error (MAE)</div></div>
+                    <div class="perf-card"><div class="perf-val">±{format_inr(312.45 * usd_inr_rate)} ($312.45)</div><div class="perf-label">Mean Absolute Error (MAE)</div></div>
                 </div>
                 <table class="perf-table">
-                    <thead><tr><th>Epoch Date</th><th>Actual Price</th><th>H-V8 Forecast</th><th>Variance</th></tr></thead>
+                    <thead><tr><th>Epoch Date</th><th>Actual Price</th><th>Hybrid Forecast</th><th>Variance</th></tr></thead>
                     <tbody>{backtest_rows}</tbody>
                 </table>
             </div>
@@ -575,9 +591,14 @@ with col_main:
         elif tab_param == "Compete":
             st.markdown("<div style='padding:40px 32px;'><h2 style='color:#f5a623;'>AI LEADERBOARD</h2><p style='color:#8a849b;'>Voltrex Hybrid Architecture vs baseline models.</p></div>", unsafe_allow_html=True)
             comp_df = pd.DataFrame({
-                "Architecture": ["Voltrex Hybrid V8 (LSTM+XGB)", "Standard LSTM", "Vanilla XGBoost", "Linear Regression"],
+                "Architecture": ["Voltrex Hybrid (LSTM+XGB)", "Standard LSTM", "Vanilla XGBoost", "Linear Regression"],
                 "Directional Accuracy": ["94.2%", "88.4%", "86.1%", "64.0%"],
-                "MAE (USD)": [f"{format_inr(312.45 * 83.5)} ($312.45)", f"{format_inr(580.12 * 83.5)} ($580.12)", f"{format_inr(640.20 * 83.5)} ($640.20)", f"{format_inr(1210.00 * 83.5)} ($1,210.00)"],
+                "MAE (USD)": [
+                    f"{format_inr(312.45 * usd_inr_rate)} ($312.45)", 
+                    f"{format_inr(580.12 * usd_inr_rate)} ($580.12)", 
+                    f"{format_inr(640.20 * usd_inr_rate)} ($640.20)", 
+                    f"{format_inr(1210.00 * usd_inr_rate)} ($1,210.00)"
+                ],
                 "Rank": ["🏆 1st", "2nd", "3rd", "4th"]
             })
             st.table(comp_df)
@@ -590,7 +611,7 @@ with col_main:
                 f"[{current_time}] PING: Connection to Binance API established.",
                 f"[{current_time}] PING: Connection to CryptoPanic API established.",
                 f"[{current_time}] PULL: Synchronizing last 30 daily candles for BTC/USDT.",
-                f"[{current_time}] CORE: Running Hybrid V8 Inference Engine...",
+                f"[{current_time}] CORE: Running Hybrid Inference Engine...",
                 f"[{current_time}] SUCCESS: Calculation complete. Confidence level 94.2%."
             ]
             for log in logs: st.code(log)
@@ -619,7 +640,7 @@ with col_main:
             <p style="color: #8a849b; font-size: 0.85rem; line-height: 1.8;">
             <strong style="color: #fff;">Core Languages:</strong> Python 3.11, HTML5, CSS3<br>
             <strong style="color: #fff;">Frontend Framework:</strong> Streamlit<br>
-            <strong style="color: #fff;">Machine Learning (H-V8):</strong> TensorFlow (Keras), Long Short-Term Memory (LSTM), XGBoost Regressor, Scikit-Learn<br>
+            <strong style="color: #fff;">Machine Learning (Hybrid):</strong> TensorFlow (Keras), Long Short-Term Memory (LSTM), XGBoost Regressor, Scikit-Learn<br>
             <strong style="color: #fff;">NLP Engine:</strong> HuggingFace Transformers (FinBERT)<br>
             <strong style="color: #fff;">Data Pipelines:</strong> Binance REST API, CryptoPanic API, CryptoNews RSS<br>
             <strong style="color: #fff;">Visualization:</strong> Plotly Graph Objects
@@ -629,7 +650,7 @@ with col_main:
             <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 25px; border-radius: 12px;">
             <h4 style="color: #00ff9d; margin-bottom: 15px; font-size: 0.9rem; letter-spacing: 1px; border-bottom: 1px solid rgba(0,255,157,0.2); padding-bottom: 8px;">PROJECT DESCRIPTION</h4>
             <p style="color: #d1d5db; font-size: 0.9rem; line-height: 1.8;">
-            Voltrex is an advanced quantitative trading terminal designed to forecast cryptocurrency asset trajectories (specifically BTC/USDT) using a proprietary <strong>Hybrid V8 Engine</strong>. By fusing deep learning (LSTM) for sequential time-series pattern recognition with gradient boosting (XGBoost) for robust feature extraction, the system achieves high-precision predictive modeling.<br><br>
+            Voltrex is an advanced quantitative trading terminal designed to forecast cryptocurrency asset trajectories (specifically BTC/USDT) using a proprietary <strong>Hybrid Engine</strong>. By fusing deep learning (LSTM) for sequential time-series pattern recognition with gradient boosting (XGBoost) for robust feature extraction, the system achieves high-precision predictive modeling.<br><br>
             This mathematical framework is further augmented by a real-time Natural Language Processing (NLP) node utilizing FinBERT to scrape and analyze global market sentiment from social and institutional news sources. The terminal provides a unified, institutional-grade dashboard for predictive analytics, backtesting validation, and real-time market tracking.
             </p>
             </div>
@@ -642,7 +663,7 @@ with col_side:
     st.markdown(f"""
     <div class="right-panel-wrapper"><div class="right-panel">
     <div class="rp-tabs"><div class="rp-tab {'active-buy' if directive == 'STRONG BUY' else 'inactive'}">LONG</div><div class="rp-tab {'active-sell' if directive == 'LIQUIDATE' else 'inactive'}">SHORT</div></div>
-    <div class="rp-balances"><div class="rp-bal-col"><span>Capital Allocation</span><span class="rp-bal-val">{format_inr(13450 * 83.5)} ($13,450.00)</span></div><div class="rp-bal-col" style="text-align: right;"><span>Projected Value</span><span class="rp-bal-val {'text-green' if diff_pct > 0 else 'text-red'}">${13450 * (1 + (diff_pct/100)):,.2f}</span></div></div>
+    <div class="rp-balances"><div class="rp-bal-col"><span>Capital Allocation</span><span class="rp-bal-val">{format_inr(13450 * usd_inr_rate)} ($13,450.00)</span></div><div class="rp-bal-col" style="text-align: right;"><span>Projected Value</span><span class="rp-bal-val {'text-green' if diff_pct > 0 else 'text-red'}">${13450 * (1 + (diff_pct/100)):,.2f}</span></div></div>
     <div class="rp-input-group"><div class="rp-label-row"><span>Target Execution Price</span></div><div class="rp-input"><span>${prediction:,.2f}</span><span class="text-max">TARGET</span></div></div>
     <div class="rp-input-group"><div class="rp-label-row"><span>Macro NLP Sentiment</span></div><div class="rp-input"><span>{"BULLISH" if macro_score > 0 else "BEARISH"}</span><span class="text-max" style="color: #f5a623;">Avg: {macro_score*100:+.1f}%</span></div></div>
     <div class="rp-summary"><div class="rp-summary-row"><span>Confidence</span><span style="color:#fff">94.2%</span></div><div class="rp-summary-row"><span>Directive</span><span class="{'text-green' if directive == 'STRONG BUY' else 'text-red'}">{directive}</span></div></div>
@@ -655,5 +676,5 @@ with col_side:
     </div></div>
     """, unsafe_allow_html=True)
 
-time.sleep(1)
+time.sleep(2)
 st.rerun()
