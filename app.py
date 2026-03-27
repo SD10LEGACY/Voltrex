@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from binance.client import Client
 from sklearn.preprocessing import MinMaxScaler, RobustScaler
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error
@@ -23,7 +22,6 @@ import hashlib
 
 warnings.filterwarnings("ignore")
 
-# --- REPRODUCIBILITY (ELIMINATES RANDOM FLICKERING) ---
 np.random.seed(42)
 tf.random.set_seed(42)
 random.seed(42)
@@ -41,9 +39,6 @@ def format_inr(number):
         int_part = ','.join(chunks) + ',' + last_three
     return f"₹{int_part}.{dec_part}"
 
-# ==========================================
-# 1. PAGE CONFIGURATION & CSS
-# ==========================================
 st.set_page_config(page_title="Voltrex Quantitative Terminal", page_icon="Vicon.png", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
@@ -171,32 +166,33 @@ ticker_html = """
 """
 components.html(ticker_html, height=44)
 
-# ==========================================
-# 3. REALITY-CHECKED BACKEND ENGINE
-# ==========================================
 @st.cache_data(ttl=1800, show_spinner=False)
 def fetch_binance_data():
-    # Using yfinance instead of python-binance to completely bypass Cloud IP blocks
-    ticker = yf.Ticker("BTC-USD")
-    df = ticker.history(period="3y", interval="1d")
-    
-    # Format the dataframe exactly how the Hybrid V8 model expects it
-    df.reset_index(inplace=True)
-    df.rename(columns={'Date': 'Open time'}, inplace=True)
-    df['Open time'] = pd.to_datetime(df['Open time'], utc=True)
-    df.set_index('Open time', inplace=True)
-    
+    try:
+        url = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=1000"
+        r = requests.get(url, timeout=5)
+        klines = r.json()
+        cols = ['Open time', 'Open', 'High', 'Low', 'Close', 'Volume', 'Close time', 'Quote asset volume', 'Number of trades', 'Taker buy base', 'Taker buy quote', 'Ignore']
+        df = pd.DataFrame(klines, columns=cols)
+        df['Open time'] = pd.to_datetime(df['Open time'], unit='ms', utc=True)
+    except:
+        df = yf.Ticker("BTC-USD").history(period="3y", interval="1d").reset_index()
+        if 'Date' in df.columns: 
+            df.rename(columns={'Date': 'Open time'}, inplace=True)
+        elif 'Datetime' in df.columns: 
+            df.rename(columns={'Datetime': 'Open time'}, inplace=True)
+        df['Open time'] = pd.to_datetime(df['Open time'], utc=True)
+
     numeric_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
     df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, axis=1)
+    df.set_index('Open time', inplace=True)
     
-    # Technical Indicators
     delta = df['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(14).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
     df['RSI'] = 100 - (100 / (1 + (gain / loss)))
     df['MACD'] = df['Close'].ewm(span=12).mean() - df['Close'].ewm(span=26).mean()
     df['OBV'] = (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
-    
     return df.dropna()
 
 @st.cache_resource(show_spinner=False)
@@ -244,6 +240,26 @@ def execute_real_hybrid_model_and_backtest(data_df):
     last_seq = features_scaled[-LOOK_BACK:].reshape(1, LOOK_BACK, X.shape[2])
     live_pred = target_scaler.inverse_transform(xgb_model.predict(np.concatenate([model_lstm.predict(last_seq, verbose=0), features_scaled[-1].reshape(1, -1)], axis=1)).reshape(-1, 1))[0][0]
 
+    model_lstm.fit(X_train, y_train, epochs=2, batch_size=32, verbose=0)
+    lstm_preds = target_scaler.inverse_transform(model_lstm.predict(X_test, verbose=0)).flatten()
+    lstm_mae = mean_absolute_error(actual_test_y, lstm_preds)
+    lstm_dir_pred = np.sign(np.diff(np.insert(lstm_preds, 0, baseline_ref)))
+    lstm_acc = (lstm_dir_pred == dir_actual).mean() * 100
+    
+    xgb_only = XGBRegressor(n_estimators=20, random_state=42)
+    xgb_only.fit(X_train[:, -1, :], y_train.flatten())
+    xgb_preds = target_scaler.inverse_transform(xgb_only.predict(X_test[:, -1, :]).reshape(-1, 1)).flatten()
+    xgb_mae = mean_absolute_error(actual_test_y, xgb_preds)
+    xgb_dir_pred = np.sign(np.diff(np.insert(xgb_preds, 0, baseline_ref)))
+    xgb_acc = (xgb_dir_pred == dir_actual).mean() * 100
+    
+    lr = LinearRegression()
+    lr.fit(X_train[:, -1, :], y_train.flatten())
+    lr_preds = target_scaler.inverse_transform(lr.predict(X_test[:, -1, :]).reshape(-1, 1)).flatten()
+    lr_mae = mean_absolute_error(actual_test_y, lr_preds)
+    lr_dir_pred = np.sign(np.diff(np.insert(lr_preds, 0, baseline_ref)))
+    lr_acc = (lr_dir_pred == dir_actual).mean() * 100
+    
     test_dates = data_df.index[-TEST_DAYS:]
     rows = ""
     for i in range(TEST_DAYS):
@@ -251,7 +267,14 @@ def execute_real_hybrid_model_and_backtest(data_df):
         color = "text-green" if abs(diff) < hybrid_mae else "text-red"
         rows += f"""<tr><td>{test_dates[i].strftime('%b %d')}</td><td>${actual_test_y[i]:,.2f}</td><td>${hybrid_test_preds[i]:,.2f}</td><td class='{color}'>±${abs(diff):,.2f}</td></tr>"""
 
-    return live_pred, hybrid_acc, historical_win_rate, hybrid_mae, rows
+    leaderboard = [
+        {"Model": "Voltrex Hybrid V8 (LSTM+XGB)", "MAE": hybrid_mae, "Acc": hybrid_acc},
+        {"Model": "Standard LSTM", "MAE": lstm_mae, "Acc": lstm_acc}, 
+        {"Model": "Vanilla XGBoost", "MAE": xgb_mae, "Acc": xgb_acc},
+        {"Model": "Linear Regression", "MAE": lr_mae, "Acc": lr_acc}
+    ]
+    
+    return live_pred, hybrid_acc, historical_win_rate, hybrid_mae, rows, leaderboard
 
 @st.cache_resource(show_spinner=False)
 def load_sentiment_model(): 
@@ -335,10 +358,16 @@ def fetch_real_news_and_sentiment():
 
 def fetch_live_price():
     try:
-        # Use yfinance for the live tracking to match the historical data
+        r = requests.get("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=5)
+        if r.status_code == 200:
+            data = r.json()
+            return float(data['lastPrice']), float(data['volume'])
+    except: 
+        pass
+    try:
         data = yf.Ticker("BTC-USD").history(period="1d")
         return float(data['Close'].iloc[-1]), float(data['Volume'].iloc[-1])
-    except: 
+    except:
         return None, None
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -354,7 +383,7 @@ def fetch_usd_inr():
 with st.spinner("Connecting to Live Exchanges and Real Inference Nodes..."):
     usd_inr_rate = fetch_usd_inr()
     df = fetch_binance_data()
-    live_pred, real_acc, historical_win_rate, real_mae, backtest_rows = execute_real_hybrid_model_and_backtest(df)
+    live_pred, real_acc, historical_win_rate, real_mae, backtest_rows, leaderboard_data = execute_real_hybrid_model_and_backtest(df)
     articles = fetch_real_news_and_sentiment()
 
 # ==========================================
@@ -482,14 +511,13 @@ with col_main:
             """, unsafe_allow_html=True)
 
         elif tab_param == "Compete":
-            st.markdown("<div style='padding:40px 32px;'><h2 style='color:#f5a623;'>AI LEADERBOARD</h2><p style='color:#8a849b;'>Voltrex Hybrid Architecture vs baseline models.</p></div>", unsafe_allow_html=True)
-            comp_df = pd.DataFrame({
-                "Architecture": ["Voltrex Hybrid V8 (LSTM+XGB)", "Standard LSTM", "Vanilla XGBoost", "Linear Regression"],
-                "Directional Accuracy": ["94.2%", "88.4%", "86.1%", "64.0%"],
-                "MAE (USD)": [f"{format_inr(312.45 * usd_inr_rate)} ($312.45)", f"{format_inr(580.12 * usd_inr_rate)} ($580.12)", f"{format_inr(640.20 * usd_inr_rate)} ($640.20)", f"{format_inr(1210.00 * usd_inr_rate)} ($1,210.00)"],
-                "Rank": ["🏆 1st", "2nd", "3rd", "4th"]
-            })
-            st.table(comp_df)
+            st.markdown("<div style='padding:40px 32px;'><h2 style='color:#f5a623;'>AI LEADERBOARD (LIVE EVAL)</h2></div>", unsafe_allow_html=True)
+            comp_df = pd.DataFrame(leaderboard_data)
+            comp_df = comp_df.sort_values(by="MAE", ascending=True).reset_index(drop=True)
+            comp_df["Directional Accuracy"] = comp_df["Acc"].apply(lambda x: f"{x:.1f}%")
+            comp_df["MAE (USD)"] = comp_df["MAE"].apply(lambda x: f"{format_inr(x * usd_inr_rate)} (${x:,.2f})")
+            comp_df["Rank"] = [f"🏆 {i+1}st" if i == 0 else f"{i+1}nd" if i == 1 else f"{i+1}rd" if i == 2 else f"{i+1}th" for i in range(len(comp_df))]
+            st.table(comp_df[["Rank", "Model", "Directional Accuracy", "MAE (USD)"]])
 
         elif tab_param == "Activity":
             st.markdown("<div style='padding:40px 32px;'><h2 style='color:#f5a623;'>REAL-TIME ACTIVITY LOGS</h2></div>", unsafe_allow_html=True)
