@@ -168,20 +168,33 @@ components.html(ticker_html, height=44)
 
 @st.cache_data(ttl=1800, show_spinner=False)
 def fetch_binance_data():
+    df = pd.DataFrame()
     try:
-        url = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=1000"
-        r = requests.get(url, timeout=5)
-        klines = r.json()
-        cols = ['Open time', 'Open', 'High', 'Low', 'Close', 'Volume', 'Close time', 'Quote asset volume', 'Number of trades', 'Taker buy base', 'Taker buy quote', 'Ignore']
-        df = pd.DataFrame(klines, columns=cols)
-        df['Open time'] = pd.to_datetime(df['Open time'], unit='ms', utc=True)
+        r = requests.get("https://api.kucoin.com/api/v1/market/candles?type=1day&symbol=BTC-USDT", timeout=5)
+        data = r.json()['data']
+        df = pd.DataFrame(data, columns=['Open time', 'Open', 'Close', 'High', 'Low', 'Volume', 'Turnover'])
+        df['Open time'] = pd.to_datetime(df['Open time'].astype(float), unit='s', utc=True)
+        df = df.sort_values('Open time')
     except:
-        df = yf.Ticker("BTC-USD").history(period="3y", interval="1d").reset_index()
-        if 'Date' in df.columns: 
-            df.rename(columns={'Date': 'Open time'}, inplace=True)
-        elif 'Datetime' in df.columns: 
-            df.rename(columns={'Datetime': 'Open time'}, inplace=True)
-        df['Open time'] = pd.to_datetime(df['Open time'], utc=True)
+        try:
+            r = requests.get("https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=1000", timeout=5)
+            klines = r.json()
+            cols = ['Open time', 'Open', 'High', 'Low', 'Close', 'Volume', 'Close time', 'Quote asset volume', 'Number of trades', 'Taker buy base', 'Taker buy quote', 'Ignore']
+            df = pd.DataFrame(klines, columns=cols)
+            df['Open time'] = pd.to_datetime(df['Open time'], unit='ms', utc=True)
+        except:
+            try:
+                df = yf.Ticker("BTC-USD").history(period="3y", interval="1d").reset_index()
+                if 'Date' in df.columns: 
+                    df.rename(columns={'Date': 'Open time'}, inplace=True)
+                elif 'Datetime' in df.columns: 
+                    df.rename(columns={'Datetime': 'Open time'}, inplace=True)
+                df['Open time'] = pd.to_datetime(df['Open time'], utc=True)
+            except:
+                pass
+
+    if df.empty:
+        raise ValueError("Data fetch failed across all APIs due to cloud network blocks.")
 
     numeric_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
     df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, axis=1)
@@ -358,17 +371,20 @@ def fetch_real_news_and_sentiment():
 
 def fetch_live_price():
     try:
-        r = requests.get("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=5)
-        if r.status_code == 200:
+        r = requests.get("https://api.kucoin.com/api/v1/market/stats?symbol=BTC-USDT", timeout=5)
+        data = r.json()['data']
+        return float(data['last']), float(data['vol'])
+    except:
+        try:
+            r = requests.get("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=5)
             data = r.json()
             return float(data['lastPrice']), float(data['volume'])
-    except: 
-        pass
-    try:
-        data = yf.Ticker("BTC-USD").history(period="1d")
-        return float(data['Close'].iloc[-1]), float(data['Volume'].iloc[-1])
-    except:
-        return None, None
+        except: 
+            try:
+                data = yf.Ticker("BTC-USD").history(period="1d")
+                return float(data['Close'].iloc[-1]), float(data['Volume'].iloc[-1])
+            except:
+                return None, None
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_usd_inr():
