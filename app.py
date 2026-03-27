@@ -1065,14 +1065,15 @@ def generate_backtest_stats(df):
         rows += f"""<tr><td>{date}</td><td>${actual[i]:,.2f}</td><td>${predicted[i]:,.2f}</td><td class='{color}'>±${abs(diff):,.2f}</td></tr>"""
     return rows
 
+@st.cache_data(ttl=15, show_spinner=False)
 def fetch_live_price():
     try:
-        r = requests.get("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=5)
+        r = requests.get("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=2)
         data = r.json()
         return float(data['lastPrice']), float(data['quoteVolume'])
     except: 
         try:
-            r = requests.get("https://api.kucoin.com/api/v1/market/stats?symbol=BTC-USDT", timeout=5)
+            r = requests.get("https://api.kucoin.com/api/v1/market/stats?symbol=BTC-USDT", timeout=2)
             data = r.json()['data']
             return float(data['last']), float(data['volValue'])
         except:
@@ -1317,7 +1318,7 @@ with col_main:
         """, unsafe_allow_html=True)
 
 with col_side:
-    directive = "STRONG BUY" if (diff_pct > 0 and macro_score > 0) else "LIQUIDATE"
+    directive = "STRONG BUY" if diff_pct > 0 else "LIQUIDATE"
     btn_style = "btn-buy" if directive == "STRONG BUY" else "btn-sell"
     st.markdown(f"""
     <div class="right-panel-wrapper"><div class="right-panel">
