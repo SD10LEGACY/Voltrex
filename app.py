@@ -15,8 +15,23 @@ from datetime import datetime, timedelta
 import streamlit.components.v1 as components
 import random
 import time
+import yfinance as yf
 
 warnings.filterwarnings("ignore")
+
+# --- BULLETPROOF INR FORMATTER (NO DOUBLE DOTS) ---
+def format_inr(number):
+    text = f"{float(number):.2f}"
+    int_part, dec_part = text.split('.')
+    if len(int_part) > 3:
+        last_three = int_part[-3:]
+        remaining = int_part[:-3]
+        chunks = []
+        while len(remaining) > 0:
+            chunks.insert(0, remaining[-2:])
+            remaining = remaining[:-2]
+        int_part = ','.join(chunks) + ',' + last_three
+    return f"₹{int_part}.{dec_part}"
 
 # ==========================================
 # 1. PAGE CONFIGURATION & CSS
@@ -144,7 +159,7 @@ header[data-testid="stHeader"] { display: none !important; height: 0px !importan
 .rp-summary { font-size: 0.8rem; color: #8a849b; display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
 .rp-summary-row { display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 4px; }
 
-.btn-main-action { font-weight: 700; padding: 14px; border-radius: 8px; text-align: center; margin-bottom: 24px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15); cursor: pointer; }
+.btn-main-action { font-weight: 700; padding: 14px; border-radius: 8px; text-align: center; margin-bottom: 16px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15); cursor: pointer; }
 .btn-buy { background: #00ff9d; color: #000; }
 .btn-sell { background: #ff4d4d; color: #fff; }
 
@@ -302,24 +317,15 @@ def load_sentiment_model():
 # THE 80-SOURCE GOD-TIER NLP ENGINE
 @st.cache_data(ttl=1800, show_spinner=False)
 def fetch_real_news_and_sentiment():
-    articles = []
-    seen_titles = set()
-
-    def add_article(title, source):
-        norm_title = title.lower().strip()
-        if norm_title not in seen_titles:
-            seen_titles.add(norm_title)
-            articles.append({"title": title, "source": source})
-
-    # 1. CryptoPanic API
     PANIC_TOKEN = "948e7ca29eae0874608f78be63530199af766176" 
+    articles = []
     try:
         panic_url = f"https://cryptopanic.com/api/v1/posts/?auth_token={PANIC_TOKEN}&public=true"
         headers = {'User-Agent': 'Mozilla/5.0'}
         panic_res = requests.get(panic_url, headers=headers, timeout=5).json()
         for post in panic_res.get('results', [])[:20]: 
             source_name = post.get('source', {}).get('domain', 'CryptoPanic')
-            add_article(post['title'], source_name)
+            articles.append({"title": post['title'], "source": source_name})
     except Exception: pass
 
     # 2. Reddit Social Intelligence
@@ -333,7 +339,7 @@ def fetch_real_news_and_sentiment():
     for feed in reddit_feeds:
         try:
             res = requests.get(feed["url"], headers=rss_headers, timeout=4)
-            for entry in feedparser.parse(res.content).entries[:5]: add_article(entry.title, feed["name"])
+            for entry in feedparser.parse(res.content).entries[:5]: articles.append({"title": entry.title, "source": feed["name"]})
         except: continue
 
     # 3. YouTube Video Intelligence
@@ -347,7 +353,7 @@ def fetch_real_news_and_sentiment():
     for feed in yt_feeds:
         try:
             res = requests.get(feed["url"], headers=rss_headers, timeout=4)
-            for entry in feedparser.parse(res.content).entries[:4]: add_article(entry.title, feed["name"])
+            for entry in feedparser.parse(res.content).entries[:4]: articles.append({"title": entry.title, "source": feed["name"]})
         except: continue
 
     # 4. Institutional News RSS
@@ -366,18 +372,18 @@ def fetch_real_news_and_sentiment():
     for feed in news_feeds:
         try:
             res = requests.get(feed["url"], headers=rss_headers, timeout=4)
-            for entry in feedparser.parse(res.content).entries[:2]: add_article(entry.title, feed["name"])
+            for entry in feedparser.parse(res.content).entries[:2]: articles.append({"title": entry.title, "source": feed["name"]})
         except: continue
 
     if not articles: articles = [{"title": "Bitcoin resilience tested at key levels", "source": "System Node"}]
     articles = articles[:80] 
-
+        
     # 5. FinBERT Scoring
     sentiment_pipeline = load_sentiment_model()
     results = sentiment_pipeline([a["title"] for a in articles])
     for i, res in enumerate(results): 
         articles[i]["score"] = res['score'] if res['label'] == 'positive' else -res['score'] if res['label'] == 'negative' else random.uniform(-0.05, 0.05)
-
+        
     random.shuffle(articles)
     return articles
 
@@ -401,8 +407,17 @@ def fetch_live_price():
         return float(data['lastPrice']), float(data['volume'])
     except: return None, None
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def fetch_usd_inr():
+    try:
+        inr_data = yf.Ticker("USDINR=X").history(period="1d")
+        return float(inr_data['Close'].iloc[-1])
+    except:
+        return 83.5
+
 # --- GLOBAL DATA SYNC ---
 with st.spinner("Connecting to Live Exchanges and NLP Nodes..."):
+    usd_inr_rate = fetch_usd_inr()
     df = fetch_binance_data()
     prediction = execute_hybrid_model(df)
     articles = fetch_real_news_and_sentiment()
@@ -455,7 +470,7 @@ st.markdown(f"""
         </div>
     </div>
     <div class="nav-right">
-        <div class="nav-pill" style="color: #fff; font-weight: 600;">{(current_price*83.5):,.2f}₹ (1.00 BTC)</div>
+        <div class="nav-pill" style="color: #fff; font-weight: 600;">{format_inr(current_price * usd_inr_rate)} (1.00 BTC)</div>
         <div class="nav-pill" style="color: #e2a8ff;"><span style="color:#8a849b;">💳</span> 0xBwqw...1248</div>
         <div class="lang-dropdown-wrapper">
             <div class="lang-btn">🌐 {current_lang} ▾</div>
@@ -532,17 +547,17 @@ with col_main:
             </div>
             <div class="chart-legend"><span>Base: <span>BTC</span></span> <span>Quote: <span>USDT</span></span> <span>Model: <span>LSTM</span></span> <span style="color:#8a849b">Accuracy: <span>94%</span></span></div>
             """, unsafe_allow_html=True)
-
+            
             plot_df = df.iloc[-90:].copy()
             if live_price is not None:
                 plot_df.loc[pd.Timestamp.now(tz='UTC')] = pd.Series({'Close': current_price})
-
+            
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=plot_df.index, y=plot_df['Close'], mode='lines', line=dict(color='#f5a623', width=2, shape='spline'), fill='tozeroy', fillcolor='rgba(245, 166, 35, 0.05)', name='BTC'))
             fig.add_hline(y=prediction, line_dash="dash", line_color="#00ff9d" if price_diff > 0 else "#ff4d4d", opacity=0.5)
             fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=32, r=32, t=10, b=10), height=380, showlegend=False, xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.03)'), yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.03)', side='right'))
             st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-
+            
             news_html = ""
             for art in articles:
                 badge_class = "pos" if art['score'] > 0.1 else "neg" if art['score'] < -0.1 else "neu"
@@ -557,7 +572,7 @@ with col_main:
                 <div class="perf-grid">
                     <div class="perf-card"><div class="perf-val">94.2%</div><div class="perf-label">Model Accuracy</div></div>
                     <div class="perf-card"><div class="perf-val">84.6%</div><div class="perf-label">Win Rate (30D)</div></div>
-                    <div class="perf-card"><div class="perf-val">±29,324.52₹ ($312.45)</div><div class="perf-label">Mean Absolute Error (MAE)</div></div>
+                    <div class="perf-card"><div class="perf-val">±{format_inr(312.45 * usd_inr_rate)} ($312.45)</div><div class="perf-label">Mean Absolute Error (MAE)</div></div>
                 </div>
                 <table class="perf-table">
                     <thead><tr><th>Epoch Date</th><th>Actual Price</th><th>H-V8 Forecast</th><th>Variance</th></tr></thead>
@@ -572,7 +587,7 @@ with col_main:
             comp_df = pd.DataFrame({
                 "Architecture": ["Voltrex Hybrid V8 (LSTM+XGB)", "Standard LSTM", "Vanilla XGBoost", "Linear Regression"],
                 "Directional Accuracy": ["94.2%", "88.4%", "86.1%", "64.0%"],
-                "MAE (USD)": ["29,324.52₹ ($312.45)", "54,446.29₹ ($580.12)", "60,085.01₹ ($640.20)", "113,562.73₹ ($1,210.00)"],
+                "MAE (USD)": [f"{format_inr(312.45 * usd_inr_rate)} ($312.45)", f"{format_inr(580.12 * usd_inr_rate)} ($580.12)", f"{format_inr(640.20 * usd_inr_rate)} ($640.20)", f"{format_inr(1210.00 * usd_inr_rate)} ($1,210.00)"],
                 "Rank": ["🏆 1st", "2nd", "3rd", "4th"]
             })
             st.table(comp_df)
@@ -637,7 +652,7 @@ with col_side:
     st.markdown(f"""
     <div class="right-panel-wrapper"><div class="right-panel">
     <div class="rp-tabs"><div class="rp-tab {'active-buy' if directive == 'STRONG BUY' else 'inactive'}">LONG</div><div class="rp-tab {'active-sell' if directive == 'LIQUIDATE' else 'inactive'}">SHORT</div></div>
-    <div class="rp-balances"><div class="rp-bal-col"><span>Capital Allocation</span><span class="rp-bal-val">1,262,329.51₹ ($13,450.00)</span></div><div class="rp-bal-col" style="text-align: right;"><span>Projected Value</span><span class="rp-bal-val {'text-green' if diff_pct > 0 else 'text-red'}">${13450 * (1 + (diff_pct/100)):,.2f}</span></div></div>
+    <div class="rp-balances"><div class="rp-bal-col"><span>Capital Allocation</span><span class="rp-bal-val">{format_inr(13450 * usd_inr_rate)} ($13,450.00)</span></div><div class="rp-bal-col" style="text-align: right;"><span>Projected Value</span><span class="rp-bal-val {'text-green' if diff_pct > 0 else 'text-red'}">${13450 * (1 + (diff_pct/100)):,.2f}</span></div></div>
     <div class="rp-input-group"><div class="rp-label-row"><span>Target Execution Price</span></div><div class="rp-input"><span>${prediction:,.2f}</span><span class="text-max">TARGET</span></div></div>
     <div class="rp-input-group"><div class="rp-label-row"><span>Macro NLP Sentiment</span></div><div class="rp-input"><span>{"BULLISH" if macro_score > 0 else "BEARISH"}</span><span class="text-max" style="color: #f5a623;">Avg: {macro_score*100:+.1f}%</span></div></div>
     <div class="rp-summary"><div class="rp-summary-row"><span>Confidence</span><span style="color:#fff">94.2%</span></div><div class="rp-summary-row"><span>Directive</span><span class="{'text-green' if directive == 'STRONG BUY' else 'text-red'}">{directive}</span></div></div>
