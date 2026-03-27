@@ -542,7 +542,7 @@ with col_main:
             st.markdown(f"""
             <div class="stats-row">
             <div class="stat-box"><span class="stat-title">BTC Spot Price</span><span class="stat-val {trend_color}">${current_price:,.2f}</span></div>
-            <div class="stat-box"><span class="stat-title">H-V8 Target (T+1)</span><span class="stat-val">${prediction:,.2f}</span></div>
+            <div class="stat-box"><span class="stat-title">Hybrid Model Target (T+1)</span><span class="stat-val">${prediction:,.2f}</span></div>
             <div class="stat-box"><span class="stat-title">Network Directive</span><span class="stat-val">{"STRONG BUY" if diff_pct > 0 else "LIQUIDATE"}</span></div>
             <div class="stat-box"><span class="stat-title">24H Volume (USD)</span><span class="stat-val">{vol_str}</span></div>
             <div class="stat-box"><span class="stat-title">Projected Delta</span><span class="stat-val {trend_color}">{diff_pct:+.2f}%</span></div>
@@ -551,7 +551,7 @@ with col_main:
             <div style="display: flex; gap: 15px; align-items: center;"><div class="epoch-pill"><span>📅</span> Horizon</div><div class="epoch-dates">{current_date} — {target_date} <span style="color: #fff; margin-left:15px;">Live Computation</span></div></div>
             <div class="nav-links"><span class="active">Price Action</span><span>Volume</span></div>
             </div>
-            <div class="chart-legend"><span>Base: <span>BTC</span></span> <span>Quote: <span>USDT</span></span> <span>Model: <span>LSTM</span></span> <span style="color:#8a849b">Accuracy: <span>94.2%</span></span></div>
+            <div class="chart-legend"><span>Base: <span>BTC</span></span> <span>Quote: <span>USDT</span></span> <span>Model: <span>HYBRID MODEL</span></span> <span style="color:#8a849b">Accuracy: <span>94.2%</span></span></div>
             """, unsafe_allow_html=True)
             
             plot_df = df.iloc[-90:].copy()
@@ -581,7 +581,7 @@ with col_main:
                     <div class="perf-card"><div class="perf-val">±{format_inr(312.45 * usd_inr_rate)} ($312.45)</div><div class="perf-label">Mean Absolute Error (MAE)</div></div>
                 </div>
                 <table class="perf-table">
-                    <thead><tr><th>Epoch Date</th><th>Actual Price</th><th>H-V8 Forecast</th><th>Variance</th></tr></thead>
+                    <thead><tr><th>Epoch Date</th><th>Actual Price</th><th>Hybrid Forecast</th><th>Variance</th></tr></thead>
                     <tbody>{backtest_rows}</tbody>
                 </table>
             </div>
@@ -591,7 +591,7 @@ with col_main:
         elif tab_param == "Compete":
             st.markdown("<div style='padding:40px 32px;'><h2 style='color:#f5a623;'>AI LEADERBOARD</h2><p style='color:#8a849b;'>Voltrex Hybrid Architecture vs baseline models.</p></div>", unsafe_allow_html=True)
             comp_df = pd.DataFrame({
-                "Architecture": ["Voltrex Hybrid V8 (LSTM+XGB)", "Standard LSTM", "Vanilla XGBoost", "Linear Regression"],
+                "Architecture": ["Voltrex Hybrid (LSTM+XGB)", "Standard LSTM", "Vanilla XGBoost", "Linear Regression"],
                 "Directional Accuracy": ["94.2%", "88.4%", "86.1%", "64.0%"],
                 "MAE (USD)": [
                     f"{format_inr(312.45 * usd_inr_rate)} ($312.45)", 
@@ -611,7 +611,7 @@ with col_main:
                 f"[{current_time}] PING: Connection to Binance API established.",
                 f"[{current_time}] PING: Connection to CryptoPanic API established.",
                 f"[{current_time}] PULL: Synchronizing last 30 daily candles for BTC/USDT.",
-                f"[{current_time}] CORE: Running Hybrid V8 Inference Engine...",
+                f"[{current_time}] CORE: Running Hybrid Inference Engine...",
                 f"[{current_time}] SUCCESS: Calculation complete. Confidence level 94.2%."
             ]
             for log in logs: st.code(log)
@@ -640,7 +640,7 @@ with col_main:
             <p style="color: #8a849b; font-size: 0.85rem; line-height: 1.8;">
             <strong style="color: #fff;">Core Languages:</strong> Python 3.11, HTML5, CSS3<br>
             <strong style="color: #fff;">Frontend Framework:</strong> Streamlit<br>
-            <strong style="color: #fff;">Machine Learning (H-V8):</strong> TensorFlow (Keras), Long Short-Term Memory (LSTM), XGBoost Regressor, Scikit-Learn<br>
+            <strong style="color: #fff;">Machine Learning (Hybrid):</strong> TensorFlow (Keras), Long Short-Term Memory (LSTM), XGBoost Regressor, Scikit-Learn<br>
             <strong style="color: #fff;">NLP Engine:</strong> HuggingFace Transformers (FinBERT)<br>
             <strong style="color: #fff;">Data Pipelines:</strong> Binance REST API, CryptoPanic API, CryptoNews RSS<br>
             <strong style="color: #fff;">Visualization:</strong> Plotly Graph Objects
@@ -650,7 +650,7 @@ with col_main:
             <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 25px; border-radius: 12px;">
             <h4 style="color: #00ff9d; margin-bottom: 15px; font-size: 0.9rem; letter-spacing: 1px; border-bottom: 1px solid rgba(0,255,157,0.2); padding-bottom: 8px;">PROJECT DESCRIPTION</h4>
             <p style="color: #d1d5db; font-size: 0.9rem; line-height: 1.8;">
-            Voltrex is an advanced quantitative trading terminal designed to forecast cryptocurrency asset trajectories (specifically BTC/USDT) using a proprietary <strong>Hybrid V8 Engine</strong>. By fusing deep learning (LSTM) for sequential time-series pattern recognition with gradient boosting (XGBoost) for robust feature extraction, the system achieves high-precision predictive modeling.<br><br>
+            Voltrex is an advanced quantitative trading terminal designed to forecast cryptocurrency asset trajectories (specifically BTC/USDT) using a proprietary <strong>Hybrid Engine</strong>. By fusing deep learning (LSTM) for sequential time-series pattern recognition with gradient boosting (XGBoost) for robust feature extraction, the system achieves high-precision predictive modeling.<br><br>
             This mathematical framework is further augmented by a real-time Natural Language Processing (NLP) node utilizing FinBERT to scrape and analyze global market sentiment from social and institutional news sources. The terminal provides a unified, institutional-grade dashboard for predictive analytics, backtesting validation, and real-time market tracking.
             </p>
             </div>
