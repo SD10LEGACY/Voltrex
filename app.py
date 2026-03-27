@@ -278,7 +278,8 @@ components.html(ticker_html, height=44)
 @st.cache_data(ttl=300, show_spinner=False)
 @st.cache_data(ttl=1800, show_spinner=False)
 def fetch_binance_data():
-    client = Client("", "", tld='us')
+    # Removed tld='us' to pull accurate global market data
+    client = Client("", "") 
     klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_1DAY, "1 Jan, 2023", "today UTC")
     cols =['Open time', 'Open', 'High', 'Low', 'Close', 'Volume', 'Close time', 'Quote asset volume', 'Number of trades', 'Taker buy base', 'Taker buy quote', 'Ignore']
     df = pd.DataFrame(klines, columns=cols)
@@ -402,18 +403,25 @@ def generate_backtest_stats(df):
 
 def fetch_live_price():
     try:
-        r = requests.get("https://api.binance.us/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=3)
+        # Changed from api.binance.us to api.binance.com
+        r = requests.get("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=5)
         data = r.json()
         return float(data['lastPrice']), float(data['volume'])
-    except: return None, None
+    except: 
+        return None, None
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_usd_inr():
+    # Primary: Free API that does not block Cloud servers
     try:
-        inr_data = yf.Ticker("USDINR=X").history(period="1d")
-        return float(inr_data['Close'].iloc[-1])
+        r = requests.get("https://api.exchangerate-api.com/v4/latest/USD", timeout=5)
+        return float(r.json()['rates']['INR'])
     except:
-        return 83.5
+        # Secondary Fallback: yfinance
+        try: 
+            return float(yf.Ticker("USDINR=X").history(period="1d")['Close'].iloc[-1])
+        except: 
+            return 83.5 # Final failsafe
 
 # --- GLOBAL DATA SYNC ---
 with st.spinner("Connecting to Live Exchanges and NLP Nodes..."):
