@@ -176,20 +176,27 @@ components.html(ticker_html, height=44)
 # ==========================================
 @st.cache_data(ttl=1800, show_spinner=False)
 def fetch_binance_data():
-    client = Client("", "")
-    klines = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_1DAY, "1 Jan, 2023", "today UTC")
-    cols =['Open time', 'Open', 'High', 'Low', 'Close', 'Volume', 'Close time', 'Quote asset volume', 'Number of trades', 'Taker buy base', 'Taker buy quote', 'Ignore']
-    df = pd.DataFrame(klines, columns=cols)
-    numeric_cols =['Open', 'High', 'Low', 'Close', 'Volume']
-    df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, axis=1)
-    df['Open time'] = pd.to_datetime(df['Open time'], unit='ms', utc=True)
+    # Using yfinance instead of python-binance to completely bypass Cloud IP blocks
+    ticker = yf.Ticker("BTC-USD")
+    df = ticker.history(period="3y", interval="1d")
+    
+    # Format the dataframe exactly how the Hybrid V8 model expects it
+    df.reset_index(inplace=True)
+    df.rename(columns={'Date': 'Open time'}, inplace=True)
+    df['Open time'] = pd.to_datetime(df['Open time'], utc=True)
     df.set_index('Open time', inplace=True)
+    
+    numeric_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
+    df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, axis=1)
+    
+    # Technical Indicators
     delta = df['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(14).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
     df['RSI'] = 100 - (100 / (1 + (gain / loss)))
     df['MACD'] = df['Close'].ewm(span=12).mean() - df['Close'].ewm(span=26).mean()
     df['OBV'] = (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
+    
     return df.dropna()
 
 @st.cache_resource(show_spinner=False)
@@ -328,9 +335,9 @@ def fetch_real_news_and_sentiment():
 
 def fetch_live_price():
     try:
-        r = requests.get("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=5)
-        data = r.json()
-        return float(data['lastPrice']), float(data['volume'])
+        # Use yfinance for the live tracking to match the historical data
+        data = yf.Ticker("BTC-USD").history(period="1d")
+        return float(data['Close'].iloc[-1]), float(data['Volume'].iloc[-1])
     except: 
         return None, None
 
