@@ -384,18 +384,13 @@ def generate_backtest_stats(df):
 
 def fetch_live_price():
     try:
-        # Priority 1: Binance Global (Best liquidity representation)
-        r = requests.get("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=5)
-        data = r.json()
-        return float(data['lastPrice']), float(data['quoteVolume']) # quoteVolume is in USD
-    except: 
-        try:
-            # Priority 2: Kucoin
-            r = requests.get("https://api.kucoin.com/api/v1/market/stats?symbol=BTC-USDT", timeout=5)
-            data = r.json()['data']
-            return float(data['last']), float(data['volValue']) # volValue is in USD
-        except:
-            return None, None
+        # CoinCap Aggregator (Pulls from 20+ exchanges including Binance/Coinbase)
+        r = requests.get("https://api.coincap.io/v2/assets/bitcoin", timeout=5)
+        data = r.json()['data']
+        # priceUsd and volumeUsd24Hr are global averages
+        return float(data['priceUsd']), float(data['volumeUsd24Hr'])
+    except:
+        return None, None
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_usd_inr():
