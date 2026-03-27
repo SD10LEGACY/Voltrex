@@ -564,23 +564,17 @@ if (!parentDoc.getElementById("vx-core-engine")) {
     const script = parentDoc.createElement("script");
     script.id = "vx-core-engine";
     script.innerHTML = `
-        // ASMR Audio Engine - Optimized for instant unlock
-        let audioCtx;
-        function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if(audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-            parentDoc.removeEventListener('click', initAudio);
-            parentDoc.removeEventListener('keydown', initAudio);
+        // ASMR Audio Engine
+        var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function unlockAudio() {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            document.removeEventListener('click', unlockAudio);
         }
-        parentDoc.addEventListener('click', initAudio);
-        parentDoc.addEventListener('keydown', initAudio);
+        document.addEventListener('click', unlockAudio);
 
         function playTactileSound(type) {
-            if(!audioCtx || audioCtx.state === 'suspended') return;
+            if(audioCtx.state === 'suspended') return;
             var osc = audioCtx.createOscillator();
             var gainNode = audioCtx.createGain();
             osc.connect(gainNode);
@@ -616,7 +610,7 @@ if (!parentDoc.getElementById("vx-core-engine")) {
 
         // Hover Events
         var lastHover = null;
-        parentDoc.addEventListener('mouseover', function(e) {
+        document.addEventListener('mouseover', function(e) {
             var target = e.target.closest('button, a, .btn-main-action, .faucet-btn, .rp-tab, .perf-card, .stat-box, .nav-pill, .epoch-pill, .news-row');
             if(target && target !== lastHover) {
                 playTactileSound('hover');
@@ -627,11 +621,11 @@ if (!parentDoc.getElementById("vx-core-engine")) {
         });
 
         // Click Events & Ripples
-        var rippleStyle = parentDoc.createElement('style');
+        var rippleStyle = document.createElement('style');
         rippleStyle.textContent = '@keyframes vxRipple { 0% { transform:scale(0); opacity:0.75; } 100% { transform:scale(4); opacity:0; } }';
-        parentDoc.head.appendChild(rippleStyle);
+        document.head.appendChild(rippleStyle);
 
-        parentDoc.addEventListener('click', function(e) {
+        document.addEventListener('click', function(e) {
             var target = e.target.closest('button, a, .btn-main-action, .faucet-btn, .rp-tab, .perf-card, .stat-box');
             if (!target) return;
             
@@ -641,7 +635,7 @@ if (!parentDoc.getElementById("vx-core-engine")) {
                 playTactileSound('click');
             }
 
-            var ripple = parentDoc.createElement('span');
+            var ripple = document.createElement('span');
             var rect   = target.getBoundingClientRect();
             var size   = Math.max(rect.width, rect.height) * 2;
             ripple.style.cssText = [
@@ -672,10 +666,10 @@ if (!parentDoc.getElementById("vx-core-engine")) {
 
         // Mutation Observer for Streamlit dynamic dom changes
         const observer = new MutationObserver(() => {
-            var rows = parentDoc.querySelectorAll('.news-row');
+            var rows = document.querySelectorAll('.news-row');
             rows.forEach(function(row, i) { row.style.animationDelay = (i * 0.04) + 's'; });
             
-            parentDoc.querySelectorAll('.stat-box, .perf-card').forEach(el => {
+            document.querySelectorAll('.stat-box, .perf-card').forEach(el => {
                 if(el.dataset.tiltInit) return;
                 el.dataset.tiltInit = true;
                 el.addEventListener('mousemove', function(e) {
@@ -689,7 +683,7 @@ if (!parentDoc.getElementById("vx-core-engine")) {
                 el.addEventListener('mouseleave', function() { el.style.transform = ''; });
             });
         });
-        observer.observe(parentDoc.body, { childList: true, subtree: true });
+        observer.observe(document.body, { childList: true, subtree: true });
     `;
     parentDoc.head.appendChild(script);
 }
@@ -708,7 +702,7 @@ if (!doc.getElementById("vx-flappy-engine")) {
     fScript.id = "vx-flappy-engine";
     fScript.innerHTML = `
         let typed = '';
-        doc.addEventListener('keydown', (e) => {
+        document.addEventListener('keydown', (e) => {
             if (e.key && e.key.length === 1) {
                 typed += e.key.toLowerCase();
                 if (typed.length > 6) typed = typed.slice(-6);
@@ -720,10 +714,10 @@ if (!doc.getElementById("vx-flappy-engine")) {
         });
 
         function launchFlappy() {
-            if (doc.getElementById('flappy-modal')) return;
+            if (document.getElementById('flappy-modal')) return;
 
             // UI Overlay
-            const modal = doc.createElement('div');
+            const modal = document.createElement('div');
             modal.id = 'flappy-modal';
             modal.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11, 7, 20, 0.95); z-index:9999999; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:"Inter", sans-serif; backdrop-filter:blur(12px);';
             
@@ -736,12 +730,12 @@ if (!doc.getElementById("vx-flappy-engine")) {
                 <canvas id="fb-canvas" width="400" height="500" style="border:2px solid rgba(255,255,255,0.05); border-radius:12px; box-shadow:0 0 50px rgba(245,166,35,0.15); background:#120e18; cursor:pointer;"></canvas>
                 <p style="color:#8a849b; margin-top:20px; font-weight:600; font-size:0.9rem;">Press SPACE or Click to Jump. Press ESC to exit.</p>
             \\`;
-            doc.body.appendChild(modal);
+            document.body.appendChild(modal);
 
-            const cvs = doc.getElementById('fb-canvas');
+            const cvs = document.getElementById('fb-canvas');
             const ctx = cvs.getContext('2d');
-            const scoreEl = doc.getElementById('fb-score');
-            const highEl = doc.getElementById('fb-high');
+            const scoreEl = document.getElementById('fb-score');
+            const highEl = document.getElementById('fb-high');
 
             // Game Variables
             let frames = 0, score = 0, gameActive = true;
@@ -896,12 +890,12 @@ if (!doc.getElementById("vx-flappy-engine")) {
                 if(e.code === 'Space') { e.preventDefault(); jump(); }
                 if(e.code === 'Escape') { 
                     gameActive = false; 
-                    doc.removeEventListener('keydown', keyHandler); 
+                    window.removeEventListener('keydown', keyHandler); 
                     modal.remove(); 
                 }
             };
             
-            doc.addEventListener('keydown', keyHandler);
+            window.addEventListener('keydown', keyHandler);
             cvs.addEventListener('mousedown', jump);
             
             loop();
@@ -913,43 +907,35 @@ if (!doc.getElementById("vx-flappy-engine")) {
 """
 components.html(flappy_html, height=0, width=0)
 
-
-# --- DATA FETCHING ---
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=1800, show_spinner=False)
 def fetch_binance_data():
     df = pd.DataFrame()
     try:
-        df = yf.Ticker("BTC-USD").history(period="3y", interval="1d").reset_index()
-        if 'Date' in df.columns: 
-            df.rename(columns={'Date': 'Open time'}, inplace=True)
-        elif 'Datetime' in df.columns: 
-            df.rename(columns={'Datetime': 'Open time'}, inplace=True)
-        df['Open time'] = pd.to_datetime(df['Open time'], utc=True)
+        r = requests.get("https://api.kucoin.com/api/v1/market/candles?type=1day&symbol=BTC-USDT", timeout=5)
+        data = r.json()['data']
+        df = pd.DataFrame(data, columns=['Open time', 'Open', 'Close', 'High', 'Low', 'Volume', 'Turnover'])
+        df['Open time'] = pd.to_datetime(df['Open time'].astype(float), unit='s', utc=True)
+        df = df.sort_values('Open time')
     except:
-        pass
-
-    if df.empty:
         try:
-            r = requests.get("https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=1000", timeout=2.5)
+            r = requests.get("https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=1000", timeout=5)
             klines = r.json()
             cols = ['Open time', 'Open', 'High', 'Low', 'Close', 'Volume', 'Close time', 'Quote asset volume', 'Number of trades', 'Taker buy base', 'Taker buy quote', 'Ignore']
             df = pd.DataFrame(klines, columns=cols)
             df['Open time'] = pd.to_datetime(df['Open time'], unit='ms', utc=True)
         except:
-            pass
+            try:
+                df = yf.Ticker("BTC-USD").history(period="3y", interval="1d").reset_index()
+                if 'Date' in df.columns: 
+                    df.rename(columns={'Date': 'Open time'}, inplace=True)
+                elif 'Datetime' in df.columns: 
+                    df.rename(columns={'Datetime': 'Open time'}, inplace=True)
+                df['Open time'] = pd.to_datetime(df['Open time'], utc=True)
+            except:
+                pass
 
     if df.empty:
-        try:
-            r = requests.get("https://api.kucoin.com/api/v1/market/candles?type=1day&symbol=BTC-USDT", timeout=2.5)
-            data = r.json()['data']
-            df = pd.DataFrame(data, columns=['Open time', 'Open', 'Close', 'High', 'Low', 'Volume', 'Turnover'])
-            df['Open time'] = pd.to_datetime(df['Open time'].astype(float), unit='s', utc=True)
-            df = df.sort_values('Open time')
-        except:
-            pass
-
-    if df.empty:
-        raise ValueError("Data fetch failed across all APIs.")
+        raise ValueError("Data fetch failed across all APIs due to cloud network blocks.")
 
     numeric_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
     df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, axis=1)
@@ -968,7 +954,7 @@ def fetch_binance_data():
     df.replace([np.inf, -np.inf], np.nan, inplace=True)
     return df.dropna()
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_resource(show_spinner=False)
 def execute_hybrid_model(data_df):
     if len(data_df) < 60:
         return 0.0
@@ -990,7 +976,7 @@ def execute_hybrid_model(data_df):
 def load_sentiment_model():
     return pipeline("sentiment-analysis", model="ProsusAI/finbert")
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=1800, show_spinner=False)
 def fetch_real_news_and_sentiment():
     articles = []
     seen_titles = set()
@@ -1001,21 +987,62 @@ def fetch_real_news_and_sentiment():
             seen_titles.add(norm_title)
             articles.append({"title": title, "source": source})
 
-    rss_headers = {'User-Agent': 'Mozilla/5.0'}
-    news_feeds = [
-        {"url": "https://cointelegraph.com/rss", "name": "Cointelegraph"},
-        {"url": "https://www.coindesk.com/arc/outboundfeeds/rss/", "name": "CoinDesk"}
+    PANIC_TOKEN = ""
+    try:
+        panic_url = f"https://cryptopanic.com/api/v1/posts/?auth_token={PANIC_TOKEN}&public=true"
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        panic_res = requests.get(panic_url, headers=headers, timeout=5).json()
+        for post in panic_res.get('results', [])[:20]: 
+            source_name = post.get('source', {}).get('domain', 'CryptoPanic')
+            add_article(post['title'], source_name)
+    except Exception: pass
+
+    rss_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+    reddit_feeds = [
+        {"url": "https://www.reddit.com/r/CryptoCurrency/top/.rss?t=day", "name": "r/CryptoCurrency"},
+        {"url": "https://www.reddit.com/r/Bitcoin/top/.rss?t=day", "name": "r/Bitcoin"},
+        {"url": "https://www.reddit.com/r/ethereum/top/.rss?t=day", "name": "r/Ethereum"},
+        {"url": "https://www.reddit.com/r/cryptofinance/top/.rss?t=day", "name": "r/CryptoFinance"}
     ]
-    for feed in news_feeds:
+    for feed in reddit_feeds:
         try:
-            res = requests.get(feed["url"], headers=rss_headers, timeout=2)
+            res = requests.get(feed["url"], headers=rss_headers, timeout=4)
+            for entry in feedparser.parse(res.content).entries[:5]: add_article(entry.title, feed["name"])
+        except: continue
+
+    yt_feeds = [
+        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCqK_GSMbpiV8spgD3ZGloSw", "name": "YT: Coin Bureau"},
+        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCgyvtPqqMOU3A4hO-yoeHIA", "name": "YT: Altcoin Daily"},
+        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCRvqjQPSeaWn-uEx-w0VuOQ", "name": "YT: Benjamin Cowen"},
+        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCpqqMN0R6I_N7k2iU5I99hQ", "name": "YT: Bankless"},
+        {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCCatR7nWbYkcVXx-XKQ5iA", "name": "YT: DataDash"}
+    ]
+    for feed in yt_feeds:
+        try:
+            res = requests.get(feed["url"], headers=rss_headers, timeout=4)
             for entry in feedparser.parse(res.content).entries[:4]: add_article(entry.title, feed["name"])
         except: continue
 
+    news_feeds = [
+        {"url": "https://cointelegraph.com/rss", "name": "Cointelegraph"},
+        {"url": "https://www.coindesk.com/arc/outboundfeeds/rss/", "name": "CoinDesk"},
+        {"url": "https://decrypt.co/feed", "name": "Decrypt"},
+        {"url": "https://cryptopotato.com/feed/", "name": "CryptoPotato"},
+        {"url": "https://www.newsbtc.com/feed/", "name": "NewsBTC"},
+        {"url": "https://ambcrypto.com/feed/", "name": "AMBCrypto"},
+        {"url": "https://u.today/rss", "name": "U.Today"},
+        {"url": "https://bitcoinist.com/feed/", "name": "Bitcoinist"},
+        {"url": "https://cryptoslate.com/feed/", "name": "CryptoSlate"},
+        {"url": "https://blockworks.co/feed", "name": "Blockworks"}
+    ]
+    for feed in news_feeds:
+        try:
+            res = requests.get(feed["url"], headers=rss_headers, timeout=4)
+            for entry in feedparser.parse(res.content).entries[:2]: add_article(entry.title, feed["name"])
+        except: continue
+
     if not articles: articles = [{"title": "Bitcoin resilience tested at key levels", "source": "System Node"}]
-    
-    # BOTTLE-NECK FIX: LIMITING TO TOP 8 ARTICLES FOR FAST CPU INFERENCE
-    articles = articles[:8] 
+    articles = articles[:80] 
         
     sentiment_pipeline = load_sentiment_model()
     results = sentiment_pipeline([a["title"] for a in articles])
@@ -1025,7 +1052,6 @@ def fetch_real_news_and_sentiment():
     random.shuffle(articles)
     return articles
 
-@st.cache_data(ttl=3600, show_spinner=False)
 def generate_backtest_stats(df):
     last_7 = df.tail(7).copy()
     actual = last_7['Close'].values
@@ -1039,52 +1065,41 @@ def generate_backtest_stats(df):
         rows += f"""<tr><td>{date}</td><td>${actual[i]:,.2f}</td><td>${predicted[i]:,.2f}</td><td class='{color}'>±${abs(diff):,.2f}</td></tr>"""
     return rows
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=15, show_spinner=False)
 def fetch_live_price():
     try:
-        t = yf.Ticker("BTC-USD")
-        hist = t.history(period="1d", interval="1m")
-        if not hist.empty:
-            last_price = float(hist['Close'].iloc[-1])
-            vol = float(hist['Volume'].sum()) * last_price
-            return last_price, vol
-    except: pass
-    
-    try:
-        r = requests.get("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=1.5)
+        r = requests.get("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=2)
         data = r.json()
         return float(data['lastPrice']), float(data['quoteVolume'])
-    except:
-        pass
+    except: 
+        try:
+            r = requests.get("https://api.kucoin.com/api/v1/market/stats?symbol=BTC-USDT", timeout=2)
+            data = r.json()['data']
+            return float(data['last']), float(data['volValue'])
+        except:
+            return None, None
 
-    try:
-        r = requests.get("https://api.kucoin.com/api/v1/market/stats?symbol=BTC-USDT", timeout=1.5)
-        data = r.json()['data']
-        return float(data['last']), float(data['volValue'])
-    except:
-        return None, None
-
+@st.cache_data(ttl=3600, show_spinner=False)
 def fetch_usd_inr():
-    try: return float(yf.Ticker("USDINR=X").history(period="1d")['Close'].iloc[-1])
-    except: return 83.5
+    try:
+        r = requests.get("https://api.exchangerate-api.com/v4/latest/USD", timeout=5)
+        return float(r.json()['rates']['INR'])
+    except:
+        try: return float(yf.Ticker("USDINR=X").history(period="1d")['Close'].iloc[-1])
+        except: return 83.5
 
 def switch_tab(tab_name):
     st.query_params["tab"] = tab_name
     st.session_state.last_tab = tab_name
     st.rerun()
 
-# --- GLOBAL DATA SYNC (PRELOADED INTO RAM) ---
-if 'app_initialized' not in st.session_state:
-    with st.spinner("Connecting to Live Exchanges and NLP Nodes..."):
-        st.session_state.usd_inr_rate = fetch_usd_inr()
-        st.session_state.df = fetch_binance_data()
-        st.session_state.prediction = execute_hybrid_model(st.session_state.df)
-        st.session_state.articles = fetch_real_news_and_sentiment()
-        st.session_state.backtest_rows = generate_backtest_stats(st.session_state.df)
-        live_p, live_v = fetch_live_price()
-        st.session_state.live_price = live_p
-        st.session_state.live_vol_usd = live_v
-        st.session_state.app_initialized = True
+# --- GLOBAL DATA SYNC ---
+with st.spinner("Connecting to Live Exchanges and NLP Nodes..."):
+    usd_inr_rate = fetch_usd_inr()
+    df = fetch_binance_data()
+    prediction = execute_hybrid_model(df)
+    articles = fetch_real_news_and_sentiment()
+    backtest_rows = generate_backtest_stats(df)
 
 # ==========================================
 # 4. TAB STATE LOGIC & REAL-TIME UPDATES
@@ -1100,23 +1115,24 @@ current_lang = lang_map.get(lang_code, "EN")
 
 if 'last_tab' not in st.session_state: st.session_state.last_tab = tab_param
 
-if st.session_state.live_price is not None:
-    current_price = st.session_state.live_price
-    vol_usd = st.session_state.live_vol_usd
+live_price, live_vol_usd = fetch_live_price()
+if live_price is not None:
+    current_price = live_price
+    vol_usd = live_vol_usd
 else:
-    current_price = st.session_state.df['Close'].iloc[-1]
-    vol_usd = st.session_state.df['Volume'].iloc[-1] * current_price
+    current_price = df['Close'].iloc[-1]
+    vol_usd = df['Volume'].iloc[-1] * current_price
 
 if vol_usd >= 1_000_000_000:
     vol_str = f"${vol_usd/1_000_000_000:,.2f}B"
 else:
     vol_str = f"${vol_usd/1_000_000:,.1f}M"
 
-price_diff = st.session_state.prediction - current_price
+price_diff = prediction - current_price
 diff_pct = (price_diff / current_price) * 100
-macro_score = sum([a['score'] for a in st.session_state.articles]) / len(st.session_state.articles) if st.session_state.articles else 0
-current_date = st.session_state.df.index[-1].strftime('%Y.%m.%d')
-target_date = (st.session_state.df.index[-1] + timedelta(days=1)).strftime('%Y.%m.%d')
+macro_score = sum([a['score'] for a in articles]) / len(articles) if articles else 0
+current_date = df.index[-1].strftime('%Y.%m.%d')
+target_date = (df.index[-1] + timedelta(days=1)).strftime('%Y.%m.%d')
 
 # TOP HTML NAVIGATION
 st.markdown(f"""
@@ -1132,7 +1148,7 @@ st.markdown(f"""
         </div>
     </div>
     <div class="nav-right">
-        <div class="nav-pill" style="color: #fff; font-weight: 600;">{format_inr(current_price * st.session_state.usd_inr_rate)} (1.00 BTC)</div>
+        <div class="nav-pill" style="color: #fff; font-weight: 600;">{format_inr(current_price * usd_inr_rate)} (1.00 BTC)</div>
         <div class="nav-pill" style="color: #e2a8ff;"><span style="color:#8a849b;">💳</span> 0xBwqw...1248</div>
         <div class="lang-dropdown-wrapper">
             <div class="lang-btn">🌐 {current_lang} ▾</div>
@@ -1143,7 +1159,7 @@ st.markdown(f"""
                 <a href="?lang=bn&tab={tab_param}" target="_self" class="lang-item">🇧🇩 Bengali</a>
             </div></div>
         </div>
-        <div class="faucet-btn" onclick="window.location.reload();">Sync Data</div>
+        <div class="faucet-btn">Sync Data</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -1186,7 +1202,7 @@ with col_main:
         st.markdown(f"""
         <div class="stats-row">
         <div class="stat-box"><span class="stat-title">BTC Spot Price</span><span class="stat-val {trend_color}">${current_price:,.2f}</span></div>
-        <div class="stat-box"><span class="stat-title">Hybrid Model Target (T+1)</span><span class="stat-val">${st.session_state.prediction:,.2f}</span></div>
+        <div class="stat-box"><span class="stat-title">Hybrid Model Target (T+1)</span><span class="stat-val">${prediction:,.2f}</span></div>
         <div class="stat-box"><span class="stat-title">Network Directive</span><span class="stat-val">{"STRONG BUY" if diff_pct > 0 else "LIQUIDATE"}</span></div>
         <div class="stat-box"><span class="stat-title">24H Volume (USD)</span><span class="stat-val">{vol_str}</span></div>
         <div class="stat-box"><span class="stat-title">Projected Delta</span><span class="stat-val {trend_color}">{diff_pct:+.2f}%</span></div>
@@ -1198,18 +1214,18 @@ with col_main:
         <div class="chart-legend"><span>Base: <span>BTC</span></span> <span>Quote: <span>USDT</span></span> <span>Model: <span>HYBRID MODEL</span></span> <span style="color:#8a849b">Accuracy: <span>94.2%</span></span></div>
         """, unsafe_allow_html=True)
         
-        plot_df = st.session_state.df.iloc[-90:].copy()
-        if st.session_state.live_price is not None:
+        plot_df = df.iloc[-90:].copy()
+        if live_price is not None:
             plot_df.loc[pd.Timestamp.now(tz='UTC')] = pd.Series({'Close': current_price})
         
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=plot_df.index, y=plot_df['Close'], mode='lines', line=dict(color='#f5a623', width=2, shape='spline'), fill='tozeroy', fillcolor='rgba(245, 166, 35, 0.05)', name='BTC'))
-        fig.add_hline(y=st.session_state.prediction, line_dash="dash", line_color="#00ff9d" if price_diff > 0 else "#ff4d4d", opacity=0.5)
+        fig.add_hline(y=prediction, line_dash="dash", line_color="#00ff9d" if price_diff > 0 else "#ff4d4d", opacity=0.5)
         fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=32, r=32, t=10, b=10), height=380, showlegend=False, xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.03)'), yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.03)', side='right'))
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key="live_btc_chart")
         
         news_html = ""
-        for art in st.session_state.articles:
+        for art in articles:
             badge_class = "pos" if art['score'] > 0.1 else "neg" if art['score'] < -0.1 else "neu"
             news_html += f"""<div class="news-row"><div class="news-row-left"><div class="n-source">{art['source']}</div><div class="n-title">{art['title']}</div></div><div class="n-badge {badge_class}">{art['score']*100:+.1f}%</div></div>"""
         st.markdown(f"""<div class="news-feed-wrapper"><div class="sec-title">LIVE NLP INTELLIGENCE FEED</div><div class="news-scroll">{news_html}</div></div>""", unsafe_allow_html=True)
@@ -1222,11 +1238,11 @@ with col_main:
             <div class="perf-grid">
                 <div class="perf-card"><div class="perf-val">94.2%</div><div class="perf-label">Model Accuracy</div></div>
                 <div class="perf-card"><div class="perf-val">84.6%</div><div class="perf-label">Win Rate (30D)</div></div>
-                <div class="perf-card"><div class="perf-val">±{format_inr(312.45 * st.session_state.usd_inr_rate)} ($312.45)</div><div class="perf-label">Mean Absolute Error (MAE)</div></div>
+                <div class="perf-card"><div class="perf-val">±{format_inr(312.45 * usd_inr_rate)} ($312.45)</div><div class="perf-label">Mean Absolute Error (MAE)</div></div>
             </div>
             <table class="perf-table">
                 <thead><tr><th>Epoch Date</th><th>Actual Price</th><th>Hybrid Forecast</th><th>Variance</th></tr></thead>
-                <tbody>{st.session_state.backtest_rows}</tbody>
+                <tbody>{backtest_rows}</tbody>
             </table>
         </div>
         """, unsafe_allow_html=True)
@@ -1238,10 +1254,10 @@ with col_main:
             "Architecture": ["Voltrex Hybrid (LSTM+XGB)", "Standard LSTM", "Vanilla XGBoost", "Linear Regression"],
             "Directional Accuracy": ["94.2%", "88.4%", "86.1%", "64.0%"],
             "MAE (USD)": [
-                f"{format_inr(312.45 * st.session_state.usd_inr_rate)} ($312.45)", 
-                f"{format_inr(580.12 * st.session_state.usd_inr_rate)} ($580.12)", 
-                f"{format_inr(640.20 * st.session_state.usd_inr_rate)} ($640.20)", 
-                f"{format_inr(1210.00 * st.session_state.usd_inr_rate)} ($1,210.00)"
+                f"{format_inr(312.45 * usd_inr_rate)} ($312.45)", 
+                f"{format_inr(580.12 * usd_inr_rate)} ($580.12)", 
+                f"{format_inr(640.20 * usd_inr_rate)} ($640.20)", 
+                f"{format_inr(1210.00 * usd_inr_rate)} ($1,210.00)"
             ],
             "Rank": ["🏆 1st", "2nd", "3rd", "4th"]
         })
@@ -1282,11 +1298,11 @@ with col_main:
         <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 25px; border-radius: 12px; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), border-color 0.3s ease, box-shadow 0.3s ease;">
         <h4 style="color: #00ff9d; margin-bottom: 15px; font-size: 0.9rem; letter-spacing: 1px; border-bottom: 1px solid rgba(0,255,157,0.2); padding-bottom: 8px;">SYSTEM ARCHITECTURE & STACK</h4>
         <p style="color: #8a849b; font-size: 0.85rem; line-height: 1.8;">
-        <strong style="color: #fff;">Core Languages:</strong> Python 3.11, HTML5, CSS3<br><br>
+        <strong style="color: #fff;">Core Languages:</strong> Python 3.11, HTML5, CSS3<br>
         <strong style="color: #fff;">Frontend Framework:</strong> Streamlit<br>
-        <strong style="color: #fff;">Machine Learning (Hybrid):</strong> TensorFlow (Keras), Long Short-Term Memory (LSTM), XGBoost Regressor, Scikit-Learn<br><br>
-        <strong style="color: #fff;">NLP Engine:</strong> HuggingFace Transformers (FinBERT)<br><br>
-        <strong style="color: #fff;">Data Pipelines:</strong> Binance REST API, CryptoPanic API, CryptoNews RSS<br><br>
+        <strong style="color: #fff;">Machine Learning (Hybrid):</strong> TensorFlow (Keras), Long Short-Term Memory (LSTM), XGBoost Regressor, Scikit-Learn<br>
+        <strong style="color: #fff;">NLP Engine:</strong> HuggingFace Transformers (FinBERT)<br>
+        <strong style="color: #fff;">Data Pipelines:</strong> Binance REST API, CryptoPanic API, CryptoNews RSS<br>
         <strong style="color: #fff;">Visualization:</strong> Plotly Graph Objects
         </p>
         </div>
@@ -1307,8 +1323,8 @@ with col_side:
     st.markdown(f"""
     <div class="right-panel-wrapper"><div class="right-panel">
     <div class="rp-tabs"><div class="rp-tab {'active-buy' if directive == 'STRONG BUY' else 'inactive'}">LONG</div><div class="rp-tab {'active-sell' if directive == 'LIQUIDATE' else 'inactive'}">SHORT</div></div>
-    <div class="rp-balances"><div class="rp-bal-col"><span>Capital Allocation</span><span class="rp-bal-val">{format_inr(13450 * st.session_state.usd_inr_rate)} ($13,450.00)</span></div><div class="rp-bal-col" style="text-align: right;"><span>Projected Value</span><span class="rp-bal-val {'text-green' if diff_pct > 0 else 'text-red'}">${13450 * (1 + (diff_pct/100)):,.2f}</span></div></div>
-    <div class="rp-input-group"><div class="rp-label-row"><span>Target Execution Price</span></div><div class="rp-input"><span>${st.session_state.prediction:,.2f}</span><span class="text-max">TARGET</span></div></div>
+    <div class="rp-balances"><div class="rp-bal-col"><span>Capital Allocation</span><span class="rp-bal-val">{format_inr(13450 * usd_inr_rate)} ($13,450.00)</span></div><div class="rp-bal-col" style="text-align: right;"><span>Projected Value</span><span class="rp-bal-val {'text-green' if diff_pct > 0 else 'text-red'}">${13450 * (1 + (diff_pct/100)):,.2f}</span></div></div>
+    <div class="rp-input-group"><div class="rp-label-row"><span>Target Execution Price</span></div><div class="rp-input"><span>${prediction:,.2f}</span><span class="text-max">TARGET</span></div></div>
     <div class="rp-input-group"><div class="rp-label-row"><span>Macro NLP Sentiment</span></div><div class="rp-input"><span>{"BULLISH" if macro_score > 0 else "BEARISH"}</span><span class="text-max" style="color: #f5a623;">Avg: {macro_score*100:+.1f}%</span></div></div>
     <div class="rp-summary"><div class="rp-summary-row"><span>Confidence</span><span style="color:#fff">94.2%</span></div><div class="rp-summary-row"><span>Directive</span><span class="{'text-green' if directive == 'STRONG BUY' else 'text-red'}">{directive}</span></div></div>
     <div class="btn-main-action {btn_style}">AUTHORIZE DIRECTIVE</div>
