@@ -38,10 +38,29 @@ def format_inr(number):
     return f"₹{int_part}.{dec_part}"
 
 # ==========================================
-# 1. PAGE CONFIGURATION & CSS
+# 1. PAGE CONFIGURATION
 # ==========================================
 st.set_page_config(page_title="Voltrex Quantitative Terminal", page_icon="Vicon.png", layout="wide", initial_sidebar_state="collapsed")
 
+# ==========================================
+# 1a. SYNC / CACHE CLEAR — runs before any UI
+# ==========================================
+try:
+    if st.query_params.get("sync") == "1":
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        for _k in list(st.session_state.keys()):
+            del st.session_state[_k]
+        _rt = st.query_params.get("tab", "Trade")
+        st.query_params.clear()
+        st.query_params["tab"] = _rt
+        st.rerun()
+except Exception:
+    pass
+
+# ==========================================
+# 1b. CSS (UNCHANGED + guide panel addition)
+# ==========================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -56,7 +75,7 @@ st.markdown("""
     overflow-x: hidden;
 }
 header[data-testid="stHeader"] { display: none !important; height: 0px !important; }
-.block-container { padding: 0rem !important; max-width: 100% !important; margin-top: -7rem !important; }
+.block-container { padding: 0rem !important; max-width: 100% !important; margin-top: -8rem !important; }
 #MainMenu, footer {visibility: hidden;}
 
 .stApp {
@@ -509,6 +528,11 @@ div[data-testid="stCode"]:hover { border-color: rgba(0,255,157,0.35) !important;
 div[data-testid="stTable"] tr { transition: background 0.2s ease; }
 div[data-testid="stTable"] tr:hover { background: rgba(245,166,35,0.05) !important; }
 
+/* ---- GUIDE PANEL SCROLLBAR ---- */
+#vx-panel-guide::-webkit-scrollbar { width: 4px; }
+#vx-panel-guide::-webkit-scrollbar-track { background: transparent; }
+#vx-panel-guide::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #f5a623, #00ff9d); border-radius: 10px; }
+
 /* ---- MOBILE ---- */
 @media screen and (min-width: 769px) {
     div[data-testid="stVerticalBlock"] > div:has(.mobile-nav-marker) { display: none !important; }
@@ -716,12 +740,11 @@ if (!doc.getElementById("vx-flappy-engine")) {
         function launchFlappy() {
             if (document.getElementById('flappy-modal')) return;
 
-            // UI Overlay
             const modal = document.createElement('div');
             modal.id = 'flappy-modal';
             modal.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(11, 7, 20, 0.95); z-index:9999999; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:"Inter", sans-serif; backdrop-filter:blur(12px);';
             
-            modal.innerHTML = \\`
+            modal.innerHTML = \`
                 <h1 style="color:#00ff9d; text-shadow:0 0 20px rgba(0,255,157,0.5); font-weight:800; letter-spacing:4px; margin-bottom:15px; font-size:2rem;">VOLTREX BIRD</h1>
                 <div style="display:flex; gap:40px; margin-bottom:20px; color:#f5a623; font-weight:800; font-size:1.2rem; letter-spacing:1px;">
                     <div>SCORE: <span id="fb-score" style="color:#fff;">0</span></div>
@@ -729,7 +752,7 @@ if (!doc.getElementById("vx-flappy-engine")) {
                 </div>
                 <canvas id="fb-canvas" width="400" height="500" style="border:2px solid rgba(255,255,255,0.05); border-radius:12px; box-shadow:0 0 50px rgba(245,166,35,0.15); background:#120e18; cursor:pointer;"></canvas>
                 <p style="color:#8a849b; margin-top:20px; font-weight:600; font-size:0.9rem;">Press SPACE or Click to Jump. Press ESC to exit.</p>
-            \\`;
+            \`;
             document.body.appendChild(modal);
 
             const cvs = document.getElementById('fb-canvas');
@@ -737,14 +760,12 @@ if (!doc.getElementById("vx-flappy-engine")) {
             const scoreEl = document.getElementById('fb-score');
             const highEl = document.getElementById('fb-high');
 
-            // Game Variables
             let frames = 0, score = 0, gameActive = true;
             const gravity = 0.35;
             const bird = { x: 80, y: 250, r: 14, v: 0, jump: -6.5 };
             const pipes = [];
             const pWidth = 60, pGap = 160;
 
-            // Global High Score Integration
             let globalHighScore = 0;
             const kvdbUrl = 'https://kvdb.io/V8FlappyVoltrex/highscore';
 
@@ -752,17 +773,10 @@ if (!doc.getElementById("vx-flappy-engine")) {
                 .then(r => r.text())
                 .then(val => {
                     let parsed = parseInt(val);
-                    if(!isNaN(parsed)) {
-                        globalHighScore = parsed;
-                        highEl.innerText = globalHighScore;
-                    } else {
-                        highEl.innerText = '0';
-                    }
-                }).catch(e => {
-                    highEl.innerText = 'Offline';
-                });
+                    if(!isNaN(parsed)) { globalHighScore = parsed; highEl.innerText = globalHighScore; }
+                    else { highEl.innerText = '0'; }
+                }).catch(e => { highEl.innerText = 'Offline'; });
 
-            // Audio Synthesis
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             function sfx(type) {
                 if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -771,7 +785,6 @@ if (!doc.getElementById("vx-flappy-engine")) {
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 const now = audioCtx.currentTime;
-                
                 if (type === 'jump') {
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(300, now);
@@ -796,11 +809,8 @@ if (!doc.getElementById("vx-flappy-engine")) {
                 }
             }
 
-            // Loop & Logic
             function render() {
                 ctx.clearRect(0, 0, cvs.width, cvs.height);
-
-                // Draw Bird (Voltrex Amber)
                 ctx.beginPath();
                 ctx.arc(bird.x, bird.y, bird.r, 0, Math.PI*2);
                 ctx.fillStyle = '#f5a623';
@@ -808,8 +818,6 @@ if (!doc.getElementById("vx-flappy-engine")) {
                 ctx.shadowColor = '#f5a623';
                 ctx.fill();
                 ctx.shadowBlur = 0;
-
-                // Draw Pipes (Neon Green)
                 ctx.fillStyle = 'rgba(0, 255, 157, 0.85)';
                 ctx.shadowBlur = 10;
                 ctx.shadowColor = '#00ff9d';
@@ -825,43 +833,33 @@ if (!doc.getElementById("vx-flappy-engine")) {
                 frames++;
                 bird.v += gravity;
                 bird.y += bird.v;
-
                 if(frames % 110 === 0) {
                     let top = Math.random() * (cvs.height - pGap - 60) + 30;
                     let bottom = cvs.height - pGap - top;
                     pipes.push({ x: cvs.width, top: top, bottom: bottom, passed: false });
                 }
-
                 pipes.forEach((p, i) => {
                     p.x -= 2.8;
-
-                    // Hitbox Collision
                     if(bird.x + bird.r > p.x && bird.x - bird.r < p.x + pWidth) {
                         if(bird.y - bird.r < p.top || bird.y + bird.r > cvs.height - p.bottom) crash();
                     }
-                    // Score
                     if(p.x + pWidth < bird.x && !p.passed) {
                         score++; scoreEl.innerText = score;
                         p.passed = true; sfx('point');
                     }
                     if(p.x + pWidth < 0) pipes.splice(i, 1);
                 });
-
-                // Floor/Ceiling
                 if(bird.y + bird.r >= cvs.height || bird.y - bird.r <= 0) crash();
             }
 
             function crash() {
                 gameActive = false;
                 sfx('crash');
-
-                // Update Global Score if beaten
                 if (score > globalHighScore) {
                     globalHighScore = score;
                     highEl.innerText = globalHighScore;
                     fetch(kvdbUrl, { method: 'POST', body: score.toString() }).catch(e=>console.log(e));
                 }
-
                 ctx.fillStyle = 'rgba(255, 77, 77, 0.8)';
                 ctx.fillRect(0,0,cvs.width,cvs.height);
                 ctx.fillStyle = '#fff';
@@ -870,34 +868,21 @@ if (!doc.getElementById("vx-flappy-engine")) {
                 ctx.fillText('CRASHED! Click to Restart', cvs.width/2, cvs.height/2);
             }
 
-            function loop() {
-                update();
-                render();
-                if(gameActive) requestAnimationFrame(loop);
-            }
+            function loop() { update(); render(); if(gameActive) requestAnimationFrame(loop); }
 
-            // Controls
             function jump() {
                 if(!gameActive) {
                     bird.y = 250; bird.v = 0; pipes.length = 0; score = 0; 
                     scoreEl.innerText = score; frames = 0; gameActive = true; loop();
-                } else {
-                    bird.v = bird.jump; sfx('jump');
-                }
+                } else { bird.v = bird.jump; sfx('jump'); }
             }
 
             const keyHandler = (e) => {
                 if(e.code === 'Space') { e.preventDefault(); jump(); }
-                if(e.code === 'Escape') { 
-                    gameActive = false; 
-                    window.removeEventListener('keydown', keyHandler); 
-                    modal.remove(); 
-                }
+                if(e.code === 'Escape') { gameActive = false; window.removeEventListener('keydown', keyHandler); modal.remove(); }
             };
-            
             window.addEventListener('keydown', keyHandler);
             cvs.addEventListener('mousedown', jump);
-            
             loop();
         }
     `;
@@ -907,6 +892,81 @@ if (!doc.getElementById("vx-flappy-engine")) {
 """
 components.html(flappy_html, height=0, width=0)
 
+# ==========================================
+# TAB SWITCHING + AUTHORIZE DIRECTIVE JS ENGINE
+# ==========================================
+tab_engine_html = """
+<script>
+const _vxd = window.parent.document;
+if (!_vxd.getElementById("vx-tab-engine")) {
+    const _vxs = _vxd.createElement("script");
+    _vxs.id = "vx-tab-engine";
+    _vxs.innerHTML = `
+        function vxWireTabs() {
+            const lt = document.getElementById("vx-tab-long");
+            const gt = document.getElementById("vx-tab-guide");
+            const lp = document.getElementById("vx-panel-long");
+            const gp = document.getElementById("vx-panel-guide");
+            const ab = document.getElementById("vx-authorize-btn");
+            const rp = document.getElementById("vx-right-panel");
+            if (!lt || !gt || lt._vxW) return;
+            const isBuy = rp ? rp.dataset.directive === "STRONG BUY" : true;
+            const activeClass = isBuy ? "active-buy" : "active-sell";
+            lt._vxW = true;
+
+            lt.addEventListener("click", function() {
+                if (lp.style.display !== "none") return;
+                lp.style.display = "flex"; lp.style.flexDirection = "column";
+                gp.style.display = "none";
+                lt.className = "rp-tab " + activeClass;
+                gt.className = "rp-tab inactive";
+            });
+
+            gt.addEventListener("click", function() {
+                lp.style.display = "none";
+                gp.style.display = "block";
+                gt.className = "rp-tab active-sell";
+                lt.className = "rp-tab inactive";
+            });
+
+            if (ab && !ab._vxW) {
+                ab._vxW = true;
+                ab.addEventListener("click", function() {
+                    const orig = ab.innerText;
+                    ab.innerText = "AUTHORIZING...";
+                    ab.style.opacity = "0.65";
+                    ab.style.pointerEvents = "none";
+                    ab.style.letterSpacing = "3px";
+                    setTimeout(function() {
+                        ab.innerText = isBuy ? "✓  LONG LOCKED" : "✓  EXIT LOCKED";
+                        ab.style.opacity = "1";
+                        ab.style.boxShadow = isBuy
+                            ? "0 0 35px rgba(0,255,157,0.75), 0 0 80px rgba(0,255,157,0.2)"
+                            : "0 0 35px rgba(255,77,77,0.75), 0 0 80px rgba(255,77,77,0.2)";
+                    }, 1400);
+                    setTimeout(function() {
+                        ab.innerText = orig;
+                        ab.style.pointerEvents = "auto";
+                        ab.style.letterSpacing = "";
+                        ab.style.boxShadow = "";
+                    }, 4200);
+                });
+            }
+        }
+        const _vxObs = new MutationObserver(vxWireTabs);
+        _vxObs.observe(document.body, { childList: true, subtree: true });
+        vxWireTabs();
+    `;
+    _vxd.head.appendChild(_vxs);
+}
+</script>
+"""
+components.html(tab_engine_html, height=0, width=0)
+
+
+# ==========================================
+# CACHED DATA FUNCTIONS
+# ==========================================
 @st.cache_data(ttl=1800, show_spinner=False)
 def fetch_binance_data():
     df = pd.DataFrame()
@@ -944,13 +1004,10 @@ def fetch_binance_data():
     delta = df['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(14).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-    
     rs = gain / loss.replace(0, np.finfo(float).eps)
     df['RSI'] = 100 - (100 / (1 + rs))
-    
     df['MACD'] = df['Close'].ewm(span=12).mean() - df['Close'].ewm(span=26).mean()
     df['OBV'] = (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
-    
     df.replace([np.inf, -np.inf], np.nan, inplace=True)
     return df.dropna()
 
@@ -1067,17 +1124,30 @@ def generate_backtest_stats(df):
 
 @st.cache_data(ttl=15, show_spinner=False)
 def fetch_live_price():
+    # Source 1: Binance (most accurate 24hr rolling volume)
     try:
         r = requests.get("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=2)
         data = r.json()
         return float(data['lastPrice']), float(data['quoteVolume'])
-    except: 
-        try:
-            r = requests.get("https://api.kucoin.com/api/v1/market/stats?symbol=BTC-USDT", timeout=2)
-            data = r.json()['data']
-            return float(data['last']), float(data['volValue'])
-        except:
-            return None, None
+    except:
+        pass
+    # Source 2: KuCoin
+    try:
+        r = requests.get("https://api.kucoin.com/api/v1/market/stats?symbol=BTC-USDT", timeout=2)
+        data = r.json()['data']
+        return float(data['last']), float(data['volValue'])
+    except:
+        pass
+    # Source 3: CoinGecko (most reliable fallback — returns accurate 24hr volume)
+    try:
+        r = requests.get(
+            "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_vol=true",
+            timeout=5
+        )
+        data = r.json()
+        return float(data['bitcoin']['usd']), float(data['bitcoin']['usd_24h_vol'])
+    except:
+        return None, None
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_usd_inr():
@@ -1093,13 +1163,24 @@ def switch_tab(tab_name):
     st.session_state.last_tab = tab_name
     st.rerun()
 
-# --- GLOBAL DATA SYNC ---
-with st.spinner("Connecting to Live Exchanges and NLP Nodes..."):
-    usd_inr_rate = fetch_usd_inr()
-    df = fetch_binance_data()
-    prediction = execute_hybrid_model(df)
-    articles = fetch_real_news_and_sentiment()
-    backtest_rows = generate_backtest_stats(df)
+# ==========================================
+# SESSION STATE DATA LOADING
+# Only runs ONCE per session — makes tab switching near-instant
+# ==========================================
+if "vx_initialized" not in st.session_state:
+    with st.spinner("Connecting to Live Exchanges and NLP Nodes..."):
+        st.session_state.vx_usd_inr   = fetch_usd_inr()
+        st.session_state.vx_df        = fetch_binance_data()
+        st.session_state.vx_prediction = execute_hybrid_model(st.session_state.vx_df)
+        st.session_state.vx_articles   = fetch_real_news_and_sentiment()
+        st.session_state.vx_backtest   = generate_backtest_stats(st.session_state.vx_df)
+    st.session_state.vx_initialized = True
+
+usd_inr_rate  = st.session_state.vx_usd_inr
+df            = st.session_state.vx_df
+prediction    = st.session_state.vx_prediction
+articles      = st.session_state.vx_articles
+backtest_rows = st.session_state.vx_backtest
 
 # ==========================================
 # 4. TAB STATE LOGIC & REAL-TIME UPDATES
@@ -1115,13 +1196,15 @@ current_lang = lang_map.get(lang_code, "EN")
 
 if 'last_tab' not in st.session_state: st.session_state.last_tab = tab_param
 
+# Live price — always fresh (15s cache, fast call)
 live_price, live_vol_usd = fetch_live_price()
 if live_price is not None:
     current_price = live_price
     vol_usd = live_vol_usd
 else:
     current_price = df['Close'].iloc[-1]
-    vol_usd = df['Volume'].iloc[-1] * current_price
+    # Fallback: use last known 24hr volume from historical candle * price
+    vol_usd = float(df['Volume'].iloc[-1]) * current_price
 
 if vol_usd >= 1_000_000_000:
     vol_str = f"${vol_usd/1_000_000_000:,.2f}B"
@@ -1159,7 +1242,7 @@ st.markdown(f"""
                 <a href="?lang=bn&tab={tab_param}" target="_self" class="lang-item">🇧🇩 Bengali</a>
             </div></div>
         </div>
-        <div class="faucet-btn">Sync Data</div>
+        <a href="?sync=1&tab={tab_param}" target="_self" class="faucet-btn" style="text-decoration:none; display:inline-block;">Sync Data</a>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -1317,21 +1400,83 @@ with col_main:
         </div>
         """, unsafe_allow_html=True)
 
+# ==========================================
+# RIGHT PANEL — DUAL TAB (LONG + GUIDE)
+# ==========================================
 with col_side:
     directive = "STRONG BUY" if diff_pct > 0 else "LIQUIDATE"
     btn_style = "btn-buy" if directive == "STRONG BUY" else "btn-sell"
+    active_tab_long = "active-buy" if directive == "STRONG BUY" else "active-sell"
+
     st.markdown(f"""
-    <div class="right-panel-wrapper"><div class="right-panel">
-    <div class="rp-tabs"><div class="rp-tab {'active-buy' if directive == 'STRONG BUY' else 'inactive'}">LONG</div><div class="rp-tab {'active-sell' if directive == 'LIQUIDATE' else 'inactive'}">SHORT</div></div>
-    <div class="rp-balances"><div class="rp-bal-col"><span>Capital Allocation</span><span class="rp-bal-val">{format_inr(13450 * usd_inr_rate)} ($13,450.00)</span></div><div class="rp-bal-col" style="text-align: right;"><span>Projected Value</span><span class="rp-bal-val {'text-green' if diff_pct > 0 else 'text-red'}">${13450 * (1 + (diff_pct/100)):,.2f}</span></div></div>
-    <div class="rp-input-group"><div class="rp-label-row"><span>Target Execution Price</span></div><div class="rp-input"><span>${prediction:,.2f}</span><span class="text-max">TARGET</span></div></div>
-    <div class="rp-input-group"><div class="rp-label-row"><span>Macro NLP Sentiment</span></div><div class="rp-input"><span>{"BULLISH" if macro_score > 0 else "BEARISH"}</span><span class="text-max" style="color: #f5a623;">Avg: {macro_score*100:+.1f}%</span></div></div>
-    <div class="rp-summary"><div class="rp-summary-row"><span>Confidence</span><span style="color:#fff">94.2%</span></div><div class="rp-summary-row"><span>Directive</span><span class="{'text-green' if directive == 'STRONG BUY' else 'text-red'}">{directive}</span></div></div>
-    <div class="btn-main-action {btn_style}">AUTHORIZE DIRECTIVE</div>
-    <div class="rp-leader-sec">
-    <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;"><div class="logo-icon" style="width:24px; height:24px; font-size:10px; display:flex; align-items:center; justify-content:center; color:#f5a623;">V8</div><div><div style="color:#fff; font-weight:600;">Hybrid Engine</div><div style="font-size:0.65rem;">System Architecture</div></div></div>
-    <div style="margin-bottom:10px;">Automated strategy using Deep LSTM neural networks combined with XGBoost and FinBERT NLP sentiment tracking.</div>
-    <div class="contract-pill"><span style="color:#8a849b;">Hash: 0x010461...</span> <span>📋</span></div>
-    </div>
-    </div></div>
+<div class="right-panel-wrapper"><div class="right-panel" id="vx-right-panel" data-directive="{directive}">
+
+<div class="rp-tabs">
+<div class="rp-tab {active_tab_long}" id="vx-tab-long">LONG</div>
+<div class="rp-tab inactive" id="vx-tab-guide">GUIDE</div>
+</div>
+
+<div id="vx-panel-long" style="display:flex;flex-direction:column;flex:1;">
+<div class="rp-balances">
+<div class="rp-bal-col"><span>Capital Allocation</span><span class="rp-bal-val">{format_inr(13450 * usd_inr_rate)} ($13,450.00)</span></div>
+<div class="rp-bal-col" style="text-align: right;"><span>Projected Value</span><span class="rp-bal-val {'text-green' if diff_pct > 0 else 'text-red'}">${13450 * (1 + (diff_pct/100)):,.2f}</span></div>
+</div>
+<div class="rp-input-group">
+<div class="rp-label-row"><span>Target Execution Price</span></div>
+<div class="rp-input"><span>${prediction:,.2f}</span><span class="text-max">TARGET</span></div>
+</div>
+<div class="rp-input-group">
+<div class="rp-label-row"><span>Macro NLP Sentiment</span></div>
+<div class="rp-input"><span>{"BULLISH" if macro_score > 0 else "BEARISH"}</span><span class="text-max" style="color: #f5a623;">Avg: {macro_score*100:+.1f}%</span></div>
+</div>
+<div class="rp-summary">
+<div class="rp-summary-row"><span>Confidence</span><span style="color:#fff">94.2%</span></div>
+<div class="rp-summary-row"><span>Directive</span><span class="{'text-green' if directive == 'STRONG BUY' else 'text-red'}">{directive}</span></div>
+</div>
+<div style="font-size:0.58rem;color:#3e384a;line-height:1.6;margin-bottom:10px;padding:8px 2px 0 2px;border-top:1px dashed rgba(255,255,255,0.05);">
+For research use only. The Decision Execution Module synthesises LSTM forecasts with FinBERT NLP sentiment into a single directive. Signals do not constitute financial advice. Past performance does not guarantee future results. Execute at your own discretion.
+</div>
+<div class="btn-main-action {btn_style}" id="vx-authorize-btn">AUTHORIZE DIRECTIVE</div>
+<div class="rp-leader-sec">
+<div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+<div class="logo-icon" style="width:24px; height:24px; font-size:10px; display:flex; align-items:center; justify-content:center; color:#f5a623;">V8</div>
+<div><div style="color:#fff; font-weight:600;">Hybrid Engine</div><div style="font-size:0.65rem;">System Architecture</div></div>
+</div>
+<div style="margin-bottom:10px;">Automated strategy using Deep LSTM neural networks combined with XGBoost and FinBERT NLP sentiment tracking.</div>
+<div class="contract-pill"><span style="color:#8a849b;">Hash: 0x010461...</span> <span>📋</span></div>
+</div>
+</div>
+
+<div id="vx-panel-guide" style="display:none;flex:1;overflow-y:auto;padding:4px 0;">
+<div style="display:flex;flex-direction:column;gap:11px;font-size:0.72rem;line-height:1.7;">
+
+<div style="padding:10px 12px;background:rgba(0,255,157,0.04);border:1px solid rgba(0,255,157,0.14);border-radius:8px;">
+<div style="color:#00ff9d;font-weight:700;font-size:0.69rem;letter-spacing:0.6px;margin-bottom:5px;">📈 BULLISH MARKET</div>
+<div style="color:#7a7487;">FinBERT detects net-positive sentiment across sources — institutional signals favour upward price momentum.</div>
+</div>
+
+<div style="padding:10px 12px;background:rgba(255,77,77,0.04);border:1px solid rgba(255,77,77,0.14);border-radius:8px;">
+<div style="color:#ff4d4d;font-weight:700;font-size:0.69rem;letter-spacing:0.6px;margin-bottom:5px;">📉 BEARISH MARKET</div>
+<div style="color:#7a7487;">Net-negative sentiment detected — social and institutional feeds signal potential downside pressure.</div>
+</div>
+
+<div style="padding:10px 12px;background:rgba(0,255,157,0.06);border:1px solid rgba(0,255,157,0.2);border-radius:8px;">
+<div style="color:#00ff9d;font-weight:700;font-size:0.69rem;letter-spacing:0.6px;margin-bottom:5px;">🟢 STRONG BUY</div>
+<div style="color:#7a7487;">LSTM trajectory is upward AND FinBERT is positive. Maximum confidence to enter or hold a long position.</div>
+</div>
+
+<div style="padding:10px 12px;background:rgba(255,77,77,0.06);border:1px solid rgba(255,77,77,0.2);border-radius:8px;">
+<div style="color:#ff4d4d;font-weight:700;font-size:0.69rem;letter-spacing:0.6px;margin-bottom:5px;">🔴 LIQUIDATE</div>
+<div style="color:#7a7487;">Model forecasts a drop or mass panic detected in feed. Exit longs and convert to stable assets immediately.</div>
+</div>
+
+<div style="padding:10px 12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px;">
+<div style="color:#6b6478;font-weight:700;font-size:0.67rem;letter-spacing:0.5px;margin-bottom:4px;">⚡ DECISION EXECUTION MODULE</div>
+<div style="color:#4e4759;font-size:0.67rem;line-height:1.6;">The sidebar synthesises LSTM predictions with FinBERT NLP sentiment into a single actionable directive. For research purposes only — not financial advice.</div>
+</div>
+
+</div>
+</div>
+
+</div></div>
     """, unsafe_allow_html=True)
