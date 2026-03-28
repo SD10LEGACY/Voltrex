@@ -1381,11 +1381,11 @@ with col_main:
         <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 25px; border-radius: 12px; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), border-color 0.3s ease, box-shadow 0.3s ease;">
         <h4 style="color: #00ff9d; margin-bottom: 15px; font-size: 0.9rem; letter-spacing: 1px; border-bottom: 1px solid rgba(0,255,157,0.2); padding-bottom: 8px;">SYSTEM ARCHITECTURE & STACK</h4>
         <p style="color: #8a849b; font-size: 0.85rem; line-height: 1.8;">
-        <strong style="color: #fff;">Core Languages:</strong> Python 3.11, HTML5, CSS3<br>
-        <strong style="color: #fff;">Frontend Framework:</strong> Streamlit<br>
-        <strong style="color: #fff;">Machine Learning (Hybrid):</strong> TensorFlow (Keras), Long Short-Term Memory (LSTM), XGBoost Regressor, Scikit-Learn<br>
-        <strong style="color: #fff;">NLP Engine:</strong> HuggingFace Transformers (FinBERT)<br>
-        <strong style="color: #fff;">Data Pipelines:</strong> Binance REST API, CryptoPanic API, CryptoNews RSS<br>
+        <strong style="color: #fff;">Core Languages:</strong> Python 3.11, HTML5, CSS3<br><br>
+        <strong style="color: #fff;">Frontend Framework:</strong> Streamlit<br><br>
+        <strong style="color: #fff;">Machine Learning (Hybrid):</strong> TensorFlow (Keras), Long Short-Term Memory (LSTM), XGBoost Regressor, Scikit-Learn<br><br>
+        <strong style="color: #fff;">NLP Engine:</strong> HuggingFace Transformers (FinBERT)<br><br>
+        <strong style="color: #fff;">Data Pipelines:</strong> Binance REST API, CryptoPanic API, CryptoNews RSS<br><br>
         <strong style="color: #fff;">Visualization:</strong> Plotly Graph Objects
         </p>
         </div>
