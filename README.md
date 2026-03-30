@@ -72,10 +72,6 @@ Voltrex operates an asynchronous **Natural Language Processing (NLP)** node powe
 
 <h2 align="center">✦ VISUAL INTERFACE ✦</h2>
 
-<h2 align="center">✦ VISUAL INTERFACE ✦</h2>
-
-<h2 align="center">✦ VISUAL INTERFACE ✦</h2>
-
 <div align="center">
   
 | 🎛️ Terminal Dashboard | 📡 Live NLP Feed & Sentiment |
