@@ -74,16 +74,18 @@ Voltrex operates an asynchronous **Natural Language Processing (NLP)** node powe
 
 <h2 align="center">✦ VISUAL INTERFACE ✦</h2>
 
+<h2 align="center">✦ VISUAL INTERFACE ✦</h2>
+
 <div align="center">
   
 | 🎛️ Terminal Dashboard | 📡 Live NLP Feed & Sentiment |
 | :---: | :---: |
-| <img src="dashboard.jpg" width="400" style="border-radius: 10px;"/> | <img src="nlp_feed.png" width="400" style="border-radius: 10px;"/> |
+| <img src="assets/dashboard.jpg" width="400" style="border-radius: 10px;"/> | <img src="assets/nlp_feed.png" width="400" style="border-radius: 10px;"/> |
 | *Real-time Plotly rendering & T+1 Horizon Line* | *FinBERT macro-scoring from 80+ sources* |
 
 | 🏆 AI Leaderboard | 🛡️ The System Vault |
 | :---: | :---: |
-| <img src="compete.png" width="400" style="border-radius: 10px;"/> | <img src="[accuracy.jpg](https://github.com/SD10LEGACY/Voltrex/blob/main/assets/accuracy.png)" width="400" style="border-radius: 10px;"/> |
+| <img src="assets/compete.png" width="400" style="border-radius: 10px;"/> | <img src="assets/accuracy.png" width="400" style="border-radius: 10px;"/> |
 | *Hybrid V8 vs. Baseline Models* | *Live Backtesting and MAE Validation* |
 
 </div>
