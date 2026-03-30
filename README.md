@@ -80,7 +80,7 @@ Voltrex operates an asynchronous **Natural Language Processing (NLP)** node powe
   
 | 🎛️ Terminal Dashboard | 📡 Live NLP Feed & Sentiment |
 | :---: | :---: |
-| <img src="assets/dashboard.jpg" width="400" style="border-radius: 10px;"/> | <img src="assets/nlp_feed.png" width="400" style="border-radius: 10px;"/> |
+| <img src="assets/dashboard.png" width="400" style="border-radius: 10px;"/> | <img src="assets/nlp_feed.png" width="400" style="border-radius: 10px;"/> |
 | *Real-time Plotly rendering & T+1 Horizon Line* | *FinBERT macro-scoring from 80+ sources* |
 
 | 🏆 AI Leaderboard | 🛡️ The System Vault |
