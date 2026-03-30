@@ -83,7 +83,7 @@ Voltrex operates an asynchronous **Natural Language Processing (NLP)** node powe
 
 | 🏆 AI Leaderboard | 🛡️ The System Vault |
 | :---: | :---: |
-| <img src="compete.png" width="400" style="border-radius: 10px;"/> | <img src="accuracy.jpg" width="400" style="border-radius: 10px;"/> |
+| <img src="compete.png" width="400" style="border-radius: 10px;"/> | <img src="[accuracy.jpg](https://github.com/SD10LEGACY/Voltrex/blob/main/assets/accuracy.png)" width="400" style="border-radius: 10px;"/> |
 | *Hybrid V8 vs. Baseline Models* | *Live Backtesting and MAE Validation* |
 
 </div>
