@@ -15,13 +15,23 @@ from datetime import datetime, timedelta
 import streamlit.components.v1 as components
 import random
 import yfinance as yf
+import html as html_lib   # FIX [XSS] — escapes all external data before HTML injection
+import secrets            # FIX [CWE-330] — CSPRNG for sync token generation
+import logging            # FIX [Error Handling] — replaces silent bare-except blocks
 
 warnings.filterwarnings("ignore")
 
+# FIX [Error Handling] — structured logger; suppressed errors are now recorded
+logging.basicConfig(level=logging.WARNING, format="%(asctime)s [%(levelname)s] %(message)s")
+_log = logging.getLogger("voltrex")
+
 # --- REPRODUCIBILITY (ELIMINATES RANDOM FLICKERING) ---
+# FIX [CWE-330] — np/tf seeds kept for ML determinism ONLY.
+# random.seed(42) REMOVED: seeding the stdlib RNG with a hardcoded constant made
+# every random.uniform / random.shuffle call globally predictable by any observer
+# with source access. random is now left unseeded (OS entropy default).
 np.random.seed(42)
 tf.random.set_seed(42)
-random.seed(42)
 
 # --- BULLETPROOF INR FORMATTER (NO DOUBLE DOTS) ---
 def format_inr(number):
@@ -45,18 +55,50 @@ st.set_page_config(page_title="Voltrex Quantitative Terminal", page_icon="Vicon.
 # ==========================================
 # 1a. SYNC / CACHE CLEAR — runs before any UI
 # ==========================================
+# FIX [CSRF / Unauth cache wipe] — sync now requires a per-session CSRF token.
+#   The token is generated once via secrets.token_hex (CSPRNG) and stored in
+#   session_state. Only requests that supply the correct token are honoured.
+# FIX [Rate Limiting] — a timestamp gate limits sync to once every 30 seconds,
+#   preventing DoS via repeated cache invalidation.
+# FIX [Error Handling] — exceptions are now logged instead of silently swallowed.
+
+_SYNC_COOLDOWN_SECS = 30
+
+def _ensure_sync_token():
+    """Generate a CSPRNG sync token once per session and persist it."""
+    if "vx_sync_token" not in st.session_state:
+        st.session_state.vx_sync_token = secrets.token_hex(32)
+    return st.session_state.vx_sync_token
+
 try:
+    _sync_token = _ensure_sync_token()
     if st.query_params.get("sync") == "1":
-        st.cache_data.clear()
-        st.cache_resource.clear()
-        for _k in list(st.session_state.keys()):
-            del st.session_state[_k]
-        _rt = st.query_params.get("tab", "Trade")
-        st.query_params.clear()
-        st.query_params["tab"] = _rt
-        st.rerun()
-except Exception:
-    pass
+        _supplied_token = st.query_params.get("sync_token", "")
+        _last_sync      = st.session_state.get("vx_last_sync_ts", 0)
+        _now_ts         = datetime.utcnow().timestamp()
+
+        if _supplied_token != _sync_token:
+            # Invalid token — reject silently to avoid leaking token existence
+            _log.warning("Sync rejected: invalid CSRF token supplied.")
+        elif (_now_ts - _last_sync) < _SYNC_COOLDOWN_SECS:
+            _log.warning("Sync rejected: rate limit — too soon since last sync.")
+        else:
+            st.session_state.vx_last_sync_ts = _now_ts
+            st.cache_data.clear()
+            st.cache_resource.clear()
+            _rt = st.query_params.get("tab", "Trade")
+            # Validate tab before preserving it
+            _VALID_TABS = {"Trade", "Vault", "Compete", "Activity", "About"}
+            _rt = _rt if _rt in _VALID_TABS else "Trade"
+            # Clear all session keys except the security ones we need to keep
+            for _k in list(st.session_state.keys()):
+                if _k not in ("vx_sync_token", "vx_last_sync_ts"):
+                    del st.session_state[_k]
+            st.query_params.clear()
+            st.query_params["tab"] = _rt
+            st.rerun()
+except Exception as _e:
+    _log.error("Sync block error: %s", _e)
 
 # ==========================================
 # 1b. CSS (UNCHANGED + guide panel addition)
@@ -748,7 +790,7 @@ if (!doc.getElementById("vx-flappy-engine")) {
                 <h1 style="color:#00ff9d; text-shadow:0 0 20px rgba(0,255,157,0.5); font-weight:800; letter-spacing:4px; margin-bottom:15px; font-size:2rem;">VOLTREX BIRD</h1>
                 <div style="display:flex; gap:40px; margin-bottom:20px; color:#f5a623; font-weight:800; font-size:1.2rem; letter-spacing:1px;">
                     <div>SCORE: <span id="fb-score" style="color:#fff;">0</span></div>
-                    <div>GLOBAL HIGH: <span id="fb-high" style="color:#fff;">Loading...</span></div>
+                    <div>SESSION HIGH: <span id="fb-high" style="color:#fff;">Loading...</span></div>
                 </div>
                 <canvas id="fb-canvas" width="400" height="500" style="border:2px solid rgba(255,255,255,0.05); border-radius:12px; box-shadow:0 0 50px rgba(245,166,35,0.15); background:#120e18; cursor:pointer;"></canvas>
                 <p style="color:#8a849b; margin-top:20px; font-weight:600; font-size:0.9rem;">Press SPACE or Click to Jump. Press ESC to exit.</p>
@@ -767,15 +809,27 @@ if (!doc.getElementById("vx-flappy-engine")) {
             const pWidth = 60, pGap = 160;
 
             let globalHighScore = 0;
-            const kvdbUrl = 'https://kvdb.io/V8FlappyVoltrex/highscore';
-
-            fetch(kvdbUrl)
-                .then(r => r.text())
-                .then(val => {
-                    let parsed = parseInt(val);
-                    if(!isNaN(parsed)) { globalHighScore = parsed; highEl.innerText = globalHighScore; }
-                    else { highEl.innerText = '0'; }
-                }).catch(e => { highEl.innerText = 'Offline'; });
+            // FIX [Fix 9 — Unauthenticated public high-score endpoint] —
+            // The original code POSTed scores to a hardcoded public kvdb.io URL
+            // with no authentication, no score validation, and no upper bound.
+            // Any user on the internet could POST an arbitrary integer to
+            // permanently set the global high score to any value.
+            //
+            // The global kvdb endpoint is now REMOVED entirely.
+            // High scores are persisted to localStorage (session-device scope),
+            // which cannot be tampered with by third parties. The "GLOBAL HIGH"
+            // label is renamed to "SESSION HIGH" to match the scope correctly.
+            // No network request is made for score storage.
+            const LS_KEY = 'vx_flappy_high';
+            try {
+                let stored = parseInt(localStorage.getItem(LS_KEY));
+                if (!isNaN(stored) && stored > 0) {
+                    globalHighScore = stored;
+                    highEl.innerText = globalHighScore;
+                } else {
+                    highEl.innerText = '0';
+                }
+            } catch(e) { highEl.innerText = '0'; }
 
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             function sfx(type) {
@@ -855,10 +909,13 @@ if (!doc.getElementById("vx-flappy-engine")) {
             function crash() {
                 gameActive = false;
                 sfx('crash');
-                if (score > globalHighScore) {
-                    globalHighScore = score;
+                // FIX [Fix 9] — Score validation: only accept positive integers ≤ 9999
+                // to prevent runaway values. Store locally; no external network write.
+                const safeScore = Math.max(0, Math.min(Math.floor(score), 9999));
+                if (safeScore > globalHighScore) {
+                    globalHighScore = safeScore;
                     highEl.innerText = globalHighScore;
-                    fetch(kvdbUrl, { method: 'POST', body: score.toString() }).catch(e=>console.log(e));
+                    try { localStorage.setItem(LS_KEY, globalHighScore.toString()); } catch(e) {}
                 }
                 ctx.fillStyle = 'rgba(255, 77, 77, 0.8)';
                 ctx.fillRect(0,0,cvs.width,cvs.height);
@@ -976,23 +1033,26 @@ def fetch_binance_data():
         df = pd.DataFrame(data, columns=['Open time', 'Open', 'Close', 'High', 'Low', 'Volume', 'Turnover'])
         df['Open time'] = pd.to_datetime(df['Open time'].astype(float), unit='s', utc=True)
         df = df.sort_values('Open time')
-    except:
+    except Exception as _e:
+        # FIX [Fix 7 — Bare except] — log fallback chain progress
+        _log.warning("KuCoin fetch failed, trying Binance: %s", _e)
         try:
             r = requests.get("https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=1000", timeout=5)
             klines = r.json()
             cols = ['Open time', 'Open', 'High', 'Low', 'Close', 'Volume', 'Close time', 'Quote asset volume', 'Number of trades', 'Taker buy base', 'Taker buy quote', 'Ignore']
             df = pd.DataFrame(klines, columns=cols)
             df['Open time'] = pd.to_datetime(df['Open time'], unit='ms', utc=True)
-        except:
+        except Exception as _e2:
+            _log.warning("Binance fetch failed, trying yfinance: %s", _e2)
             try:
                 df = yf.Ticker("BTC-USD").history(period="3y", interval="1d").reset_index()
-                if 'Date' in df.columns: 
+                if 'Date' in df.columns:
                     df.rename(columns={'Date': 'Open time'}, inplace=True)
-                elif 'Datetime' in df.columns: 
+                elif 'Datetime' in df.columns:
                     df.rename(columns={'Datetime': 'Open time'}, inplace=True)
                 df['Open time'] = pd.to_datetime(df['Open time'], utc=True)
-            except:
-                pass
+            except Exception as _e3:
+                _log.error("All data sources exhausted: %s", _e3)
 
     if df.empty:
         raise ValueError("Data fetch failed across all APIs due to cloud network blocks.")
@@ -1044,15 +1104,22 @@ def fetch_real_news_and_sentiment():
             seen_titles.add(norm_title)
             articles.append({"title": title, "source": source})
 
-    PANIC_TOKEN = ""
-    try:
-        panic_url = f"https://cryptopanic.com/api/v1/posts/?auth_token={PANIC_TOKEN}&public=true"
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        panic_res = requests.get(panic_url, headers=headers, timeout=5).json()
-        for post in panic_res.get('results', [])[:20]: 
-            source_name = post.get('source', {}).get('domain', 'CryptoPanic')
-            add_article(post['title'], source_name)
-    except Exception: pass
+    # CryptoPanic API key is Hidden but without it, that feed is simply skipped (which is the safe default). The rest of the app runs fine without it.
+    import os
+    PANIC_TOKEN = os.environ.get("PANIC_TOKEN", "")
+    if PANIC_TOKEN:
+        try:
+            panic_url = f"https://cryptopanic.com/api/v1/posts/?auth_token={PANIC_TOKEN}&public=true"
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            panic_res = requests.get(panic_url, headers=headers, timeout=5).json()
+            for post in panic_res.get('results', [])[:20]:
+                source_name = post.get('source', {}).get('domain', 'CryptoPanic')
+                add_article(post['title'], source_name)
+        except Exception as _e:
+            # FIX [Fix 7 — Bare except] — log instead of silently swallowing
+            _log.warning("CryptoPanic fetch failed: %s", _e)
+    else:
+        _log.info("PANIC_TOKEN not set — skipping CryptoPanic feed.")
 
     rss_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
     reddit_feeds = [
@@ -1064,8 +1131,12 @@ def fetch_real_news_and_sentiment():
     for feed in reddit_feeds:
         try:
             res = requests.get(feed["url"], headers=rss_headers, timeout=4)
-            for entry in feedparser.parse(res.content).entries[:5]: add_article(entry.title, feed["name"])
-        except: continue
+            for entry in feedparser.parse(res.content).entries[:5]:
+                add_article(entry.title, feed["name"])
+        except Exception as _e:
+            # FIX [Fix 7 — Bare except] — log and continue
+            _log.warning("Reddit feed error (%s): %s", feed["name"], _e)
+            continue
 
     yt_feeds = [
         {"url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCqK_GSMbpiV8spgD3ZGloSw", "name": "YT: Coin Bureau"},
@@ -1077,8 +1148,12 @@ def fetch_real_news_and_sentiment():
     for feed in yt_feeds:
         try:
             res = requests.get(feed["url"], headers=rss_headers, timeout=4)
-            for entry in feedparser.parse(res.content).entries[:4]: add_article(entry.title, feed["name"])
-        except: continue
+            for entry in feedparser.parse(res.content).entries[:4]:
+                add_article(entry.title, feed["name"])
+        except Exception as _e:
+            # FIX [Fix 7 — Bare except] — log and continue
+            _log.warning("YouTube feed error (%s): %s", feed["name"], _e)
+            continue
 
     news_feeds = [
         {"url": "https://cointelegraph.com/rss", "name": "Cointelegraph"},
@@ -1095,17 +1170,34 @@ def fetch_real_news_and_sentiment():
     for feed in news_feeds:
         try:
             res = requests.get(feed["url"], headers=rss_headers, timeout=4)
-            for entry in feedparser.parse(res.content).entries[:2]: add_article(entry.title, feed["name"])
-        except: continue
+            for entry in feedparser.parse(res.content).entries[:2]:
+                add_article(entry.title, feed["name"])
+        except Exception as _e:
+            # FIX [Fix 7 — Bare except] — log and continue
+            _log.warning("News feed error (%s): %s", feed["name"], _e)
+            continue
 
-    if not articles: articles = [{"title": "Bitcoin resilience tested at key levels", "source": "System Node"}]
-    articles = articles[:80] 
-        
+    if not articles:
+        articles = [{"title": "Bitcoin resilience tested at key levels", "source": "System Node"}]
+    articles = articles[:80]
+
     sentiment_pipeline = load_sentiment_model()
     results = sentiment_pipeline([a["title"] for a in articles])
-    for i, res in enumerate(results): 
-        articles[i]["score"] = res['score'] if res['label'] == 'positive' else -res['score'] if res['label'] == 'negative' else random.uniform(-0.05, 0.05)
-        
+    for i, res in enumerate(results):
+        # FIX [CWE-330 / random.seed] — neutral scores now use secrets-module-seeded
+        # float rather than the previously globally-seeded random.uniform.
+        # secrets.randbelow gives a cryptographically random integer; we scale it
+        # to the (-0.05, 0.05) float range expected downstream.
+        neutral_jitter = (secrets.randbelow(10001) / 10000.0) * 0.1 - 0.05
+        articles[i]["score"] = (
+            res['score']      if res['label'] == 'positive' else
+            -res['score']     if res['label'] == 'negative' else
+            neutral_jitter
+        )
+
+    # FIX [CWE-330 / random.seed] — random.shuffle is acceptable here (cosmetic
+    # display ordering only, not security-sensitive), but we explicitly document
+    # that this uses the unseeded stdlib RNG, not a fixed seed.
     random.shuffle(articles)
     return articles
 
@@ -1129,15 +1221,16 @@ def fetch_live_price():
         r = requests.get("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", timeout=2)
         data = r.json()
         return float(data['lastPrice']), float(data['quoteVolume'])
-    except:
-        pass
+    except Exception as _e:
+        # FIX [Fix 7 — Bare except] — log fallback chain
+        _log.warning("Binance live price failed: %s", _e)
     # Source 2: KuCoin
     try:
         r = requests.get("https://api.kucoin.com/api/v1/market/stats?symbol=BTC-USDT", timeout=2)
         data = r.json()['data']
         return float(data['last']), float(data['volValue'])
-    except:
-        pass
+    except Exception as _e:
+        _log.warning("KuCoin live price failed: %s", _e)
     # Source 3: CoinGecko (most reliable fallback — returns accurate 24hr volume)
     try:
         r = requests.get(
@@ -1146,7 +1239,8 @@ def fetch_live_price():
         )
         data = r.json()
         return float(data['bitcoin']['usd']), float(data['bitcoin']['usd_24h_vol'])
-    except:
+    except Exception as _e:
+        _log.error("All live price sources failed: %s", _e)
         return None, None
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -1154,11 +1248,22 @@ def fetch_usd_inr():
     try:
         r = requests.get("https://api.exchangerate-api.com/v4/latest/USD", timeout=5)
         return float(r.json()['rates']['INR'])
-    except:
-        try: return float(yf.Ticker("USDINR=X").history(period="1d")['Close'].iloc[-1])
-        except: return 83.5
+    except Exception as _e:
+        # FIX [Fix 7 — Bare except] — log and try fallback
+        _log.warning("ExchangeRate-API failed: %s", _e)
+        try:
+            return float(yf.Ticker("USDINR=X").history(period="1d")['Close'].iloc[-1])
+        except Exception as _e2:
+            _log.error("USD/INR yfinance fallback failed, using hardcoded rate: %s", _e2)
+            return 83.5
 
 def switch_tab(tab_name):
+    # FIX [Unvalidated Input] — tab_name comes from button labels; validate against
+    # allowlist before writing to query_params to prevent injection.
+    _VALID_TABS = {"Trade", "Vault", "Compete", "Activity", "About"}
+    if tab_name not in _VALID_TABS:
+        _log.warning("switch_tab: invalid tab '%s' rejected.", tab_name)
+        tab_name = "Trade"
     st.query_params["tab"] = tab_name
     st.session_state.last_tab = tab_name
     st.rerun()
@@ -1185,11 +1290,26 @@ backtest_rows = st.session_state.vx_backtest
 # ==========================================
 # 4. TAB STATE LOGIC & REAL-TIME UPDATES
 # ==========================================
-try: tab_param = st.query_params.get("tab", "Trade")
-except: tab_param = "Trade"
+# FIX [Unvalidated Input / XSS] — tab_param and lang_code are URL-controlled.
+#   Both are now validated against strict allowlists before any use.
+#   An unrecognised value silently falls back to the safe default,
+#   preventing injection into the HTML f-strings below.
+_VALID_TABS  = {"Trade", "Vault", "Compete", "Activity", "About"}
+_VALID_LANGS = {"en", "zh", "hi", "bn"}
 
-try: lang_code = st.query_params.get("lang", "en")
-except: lang_code = "en"
+try:
+    _raw_tab = st.query_params.get("tab", "Trade")
+    tab_param = _raw_tab if _raw_tab in _VALID_TABS else "Trade"
+except Exception as _e:
+    _log.warning("tab param read error: %s", _e)
+    tab_param = "Trade"
+
+try:
+    _raw_lang = st.query_params.get("lang", "en")
+    lang_code = _raw_lang if _raw_lang in _VALID_LANGS else "en"
+except Exception as _e:
+    _log.warning("lang param read error: %s", _e)
+    lang_code = "en"
 
 lang_map = {"en": "EN", "zh": "ZH", "hi": "HI", "bn": "BN"}
 current_lang = lang_map.get(lang_code, "EN")
@@ -1218,6 +1338,7 @@ current_date = df.index[-1].strftime('%Y.%m.%d')
 target_date = (df.index[-1] + timedelta(days=1)).strftime('%Y.%m.%d')
 
 # TOP HTML NAVIGATION
+_nav_sync_token = _ensure_sync_token()   # FIX [CSRF] — include token in sync URL
 st.markdown(f"""
 <div class="top-nav">
     <div class="nav-left">
@@ -1242,7 +1363,7 @@ st.markdown(f"""
                 <a href="?lang=bn&tab={tab_param}" target="_self" class="lang-item">🇧🇩 Bengali</a>
             </div></div>
         </div>
-        <a href="?sync=1&tab={tab_param}" target="_self" class="faucet-btn" style="text-decoration:none; display:inline-block;">Sync Data</a>
+        <a href="?sync=1&sync_token={_nav_sync_token}&tab={tab_param}" target="_self" class="faucet-btn" style="text-decoration:none; display:inline-block;">Sync Data</a>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -1310,7 +1431,13 @@ with col_main:
         news_html = ""
         for art in articles:
             badge_class = "pos" if art['score'] > 0.1 else "neg" if art['score'] < -0.1 else "neu"
-            news_html += f"""<div class="news-row"><div class="news-row-left"><div class="n-source">{art['source']}</div><div class="n-title">{art['title']}</div></div><div class="n-badge {badge_class}">{art['score']*100:+.1f}%</div></div>"""
+            # FIX [XSS] — art['title'] and art['source'] come from external RSS feeds and
+            # third-party APIs. Injecting them raw into unsafe_allow_html HTML allows any
+            # malicious or compromised feed to inject arbitrary HTML/JS into the page.
+            # html_lib.escape() converts <, >, ", & to safe HTML entities.
+            safe_source = html_lib.escape(str(art.get('source', '')))
+            safe_title  = html_lib.escape(str(art.get('title',  '')))
+            news_html += f"""<div class="news-row"><div class="news-row-left"><div class="n-source">{safe_source}</div><div class="n-title">{safe_title}</div></div><div class="n-badge {badge_class}">{art['score']*100:+.1f}%</div></div>"""
         st.markdown(f"""<div class="news-feed-wrapper"><div class="sec-title">LIVE NLP INTELLIGENCE FEED</div><div class="news-scroll">{news_html}</div></div>""", unsafe_allow_html=True)
 
     # --- TAB: VAULT ---
