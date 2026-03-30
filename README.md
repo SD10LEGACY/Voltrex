@@ -72,19 +72,20 @@ Voltrex operates an asynchronous **Natural Language Processing (NLP)** node powe
 
 <h2 align="center">✦ VISUAL INTERFACE ✦</h2>
 
+<h2 align="center">✦ VISUAL INTERFACE ✦</h2>
+
 <div align="center">
   
 | 🎛️ Terminal Dashboard | 📡 Live NLP Feed & Sentiment |
 | :---: | :---: |
-| <img src="https://via.placeholder.com/400x250/120e18/00FF9D?text=Insert+Dashboard+Screenshot" width="400" style="border-radius: 10px;"/> | <img src="https://via.placeholder.com/400x250/120e18/F5A623?text=Insert+NLP+Screenshot" width="400" style="border-radius: 10px;"/> |
+| <img src="dashboard.jpg" width="400" style="border-radius: 10px;"/> | <img src="nlp_feed.png" width="400" style="border-radius: 10px;"/> |
 | *Real-time Plotly rendering & T+1 Horizon Line* | *FinBERT macro-scoring from 80+ sources* |
 
 | 🏆 AI Leaderboard | 🛡️ The System Vault |
 | :---: | :---: |
-| <img src="https://via.placeholder.com/400x250/120e18/e2a8ff?text=Insert+Leaderboard+Screenshot" width="400" style="border-radius: 10px;"/> | <img src="https://via.placeholder.com/400x250/120e18/ff4d4d?text=Insert+Vault+Screenshot" width="400" style="border-radius: 10px;"/> |
+| <img src="compete.png" width="400" style="border-radius: 10px;"/> | <img src="accuracy.jpg" width="400" style="border-radius: 10px;"/> |
 | *Hybrid V8 vs. Baseline Models* | *Live Backtesting and MAE Validation* |
 
-*(Note: Replace the placeholder image links above with your actual high-res screenshots from your repo!)*
 </div>
 
 <br>
