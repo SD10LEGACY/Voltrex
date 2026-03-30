@@ -11,7 +11,7 @@
 
 <h3 align="center">A N A L Y T I C A L &nbsp;&nbsp; Q U A N T I T A T I V E &nbsp;&nbsp; T E R M I N A L</h3>
 
-[![Live Demo](https://img.shields.io/badge/🚀_LAUNCH_TERMINAL-voltrex.streamlit.app-00FF9D?style=for-the-badge&logoColor=black&labelColor=2F1D4F)](https://voltrex.streamlit.app)
+[![Live Demo](https://img.shields.io/badge/🚀_LAUNCH_TERMINAL-voltrex-00FF9D?style=for-the-badge&logoColor=black&labelColor=2F1D4F)](https://voltrex.streamlit.app)
 [![Creator](https://img.shields.io/badge/Architect-Shreyojit-F5A623?style=for-the-badge&logo=github&logoColor=white&labelColor=120e18)](https://github.com/SD10LEGACY)
 
 <br>
