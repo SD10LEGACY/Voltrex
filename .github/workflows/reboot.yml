@@ -1,0 +1,25 @@
+name: 🔄 Voltrex Auto-Reboot & Cache Purge
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  reboot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🛰️ Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🧹 Purge Cache & Force Restart
+        run: |
+          git config --global user.name "Voltrex-Bot"
+          git config --global user.email "bot@voltrex.io"
+          
+          # Create or update a tiny trigger file to force a hard refresh
+          echo "Last System Wipe: $(date)" > reboot_trigger.txt
+          
+          git add reboot_trigger.txt
+          git commit -m "🔄 Scheduled System Wipe: $(date)"
+          git push
