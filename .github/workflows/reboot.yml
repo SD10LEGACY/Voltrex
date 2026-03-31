@@ -12,12 +12,12 @@ jobs:
       - name: 🛰️ Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 🧹 Purge Cache & Force Restart
+      - name: 🧹 Force System Refresh
         run: |
           git config --global user.name "Voltrex-Bot"
           git config --global user.email "bot@voltrex.io"
           
-          # Create or update a tiny trigger file to force a hard refresh
+          # This creates a physical change that Streamlit MUST react to
           echo "Last System Wipe: $(date)" > reboot_trigger.txt
           
           git add reboot_trigger.txt
