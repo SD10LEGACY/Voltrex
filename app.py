@@ -19,14 +19,6 @@ import html as html_lib   # FIX [XSS] — escapes all external data before HTML 
 import secrets            # FIX [CWE-330] — CSPRNG for sync token generation
 import logging            # FIX [Error Handling] — replaces silent bare-except blocks
 
-# --- CACHE PURGE ENGINE ---
-# This checks if the app has just been redeployed and clears the RAM
-if "last_reboot" not in st.session_state:
-    st.cache_data.clear()
-    st.cache_resource.clear()
-    st.session_state["last_reboot"] = True
-    print("🧹 Voltrex Cache Purged Successfully.")
-
 warnings.filterwarnings("ignore")
 
 # FIX [Error Handling] — structured logger; suppressed errors are now recorded
