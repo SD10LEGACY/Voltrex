@@ -93,5 +93,5 @@ Voltrex operates an asynchronous **Natural Language Processing (NLP)** node powe
 
 **1. Clone the Repository**
 ```bash
-git clone [https://github.com/SD10LEGACY/voltrex-terminal.git](https://github.com/SD10LEGACY/voltrex-terminal.git)
-cd voltrex-terminal
+git clone [https://github.com/SD10LEGACY/voltrex.git](https://github.com/SD10LEGACY/voltrex.git)
+cd voltrex
